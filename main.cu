@@ -5,6 +5,8 @@
 #include "main.h"
 #include "edge_detection.h"
 
+#include "tests.h"
+
 /**
  * Applies discrete convolution over a matrix using a given kernel.
  * This kernel should be called using appropriate number of grids, blocks and threads to match the resolution of the image.
@@ -22,12 +24,24 @@ __global__ void convolution(unsigned char *matrix, int matrix_width, int matrix_
 
   unsigned char convolution_result = 0;
 
-  // Todo ...
+  if (0 < localIdxX && localIdxX < MATRIX_SIZE_PER_BLOCK-1 && 0 < localIdxY && localIdxY < MATRIX_SIZE_PER_BLOCK-1) {
+    for (int i = 0; i < kernel_size; i++) {
+      for (int j = 0; j < kernel_size; j++) {
+        int vertical_offset = (localIdxY + (int)floor((float)i/kernel_size) - (int)floor(kernel_size/2.0))*MATRIX_SIZE_PER_BLOCK;
+        int horizontal_offset = localIdxX + (i%kernel_size - (int)floor(kernel_size/2.0));
+        int tmp_index = vertical_offset + horizontal_offset;
+
+        convolution_result += shared_matrix[tmp_index] * kernel[i*kernel_size + j];
+      }
+    }
+  }
 
   matrix[current_matrix_index] = convolution_result;
 }
 
 int main(int argc, char **argv) {
+  test_sobel_feldman();
 
   return 0;
 }
+
