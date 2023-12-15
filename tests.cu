@@ -3,44 +3,18 @@
 #include "tests.h"
 #include "main.h"
 #include "edge_detection.h"
+#include "img.h"
 
 void test_sobel_feldman() {
-  int matrix_width = 64;
-  int matrix_height = 32;
-  unsigned char **buffer;
+  GrayImage* grayImage = readPGM("circle_sample.pgm");
 
-  buffer = (unsigned char **) malloc(sizeof(unsigned char *) * matrix_height);
+  if (grayImage == NULL) {
+    printf("Error reading the image\n");
+    exit(EXIT_FAILURE);
+  } 
   
-  for (int i = 0; i < matrix_height; i++) {
-    buffer[i] = (unsigned char *) malloc(sizeof(unsigned char) * matrix_width);
-  }
-
-  for (int i = 0; i < matrix_height; i++) {
-    for (int j = 0; j < matrix_width; j++) {
-      buffer[i][j] = 5;
-    }
-  }
+  sobel_feldman(grayImage->data, grayImage->width, grayImage->height);
   
-  // Debug
-  for (int i = 0; i < matrix_height; i++) {
-    for (int j = 0; j < matrix_width; j++) {
-      printf("%c ", buffer[i][j] + '0');
-    }
-    printf("\n");
-  }
-
-  sobel_feldman(buffer, matrix_width, matrix_height);
-  
-  /*printf("===\n");
-  for (int i = 0; i < matrix_height; i++) {
-    for (int j = 0; j < matrix_width; j++) {
-      printf("%c ", buffer[i][j] + '0');
-    }
-    printf("\n");
-  }*/
-  
-  for (int i = 0; i < matrix_height; i++) {
-    free(buffer[i]);
-  }
-  free(buffer);
+  writePGM("sobel_feldman_output.pgm", grayImage);
+  destroyPGM(grayImage);  
 }
