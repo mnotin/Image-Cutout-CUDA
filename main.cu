@@ -26,7 +26,7 @@ __global__ void convolution(unsigned char *matrix, int matrix_width, int matrix_
 
   int convolution_result = 0;
 
-  if (0 < localIdxX && localIdxX < MATRIX_SIZE_PER_BLOCK-1 && 0 <= localIdxY && localIdxY < MATRIX_SIZE_PER_BLOCK-1) {
+  if (0 < localIdxX && localIdxX < MATRIX_SIZE_PER_BLOCK-1 && 0 < localIdxY && localIdxY < MATRIX_SIZE_PER_BLOCK-1) {
     for (int i = 0; i < kernel_size; i++) {
       for (int j = 0; j < kernel_size; j++) {
         int vertical_offset = ((localIdxY + i) - (int)floor(kernel_size/2.0));
