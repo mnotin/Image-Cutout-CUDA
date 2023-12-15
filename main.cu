@@ -16,31 +16,38 @@ __global__ void convolution(unsigned char *matrix, int matrix_width, int matrix_
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
   int localIdxX = globalIdxX % MATRIX_SIZE_PER_BLOCK;
   int localIdxY = globalIdxY % MATRIX_SIZE_PER_BLOCK;
-
+  
   int current_matrix_index = globalIdxY*matrix_width + globalIdxX;
   int current_shared_matrix_index = localIdxY*MATRIX_SIZE_PER_BLOCK + localIdxX;
 
   __shared__ unsigned char shared_matrix[MATRIX_SIZE_PER_BLOCK*MATRIX_SIZE_PER_BLOCK];
+  shared_matrix[current_shared_matrix_index] = matrix[current_matrix_index];
+  __syncthreads();
 
-  unsigned char convolution_result = 0;
+  int convolution_result = 0;
 
-  if (0 < localIdxX && localIdxX < MATRIX_SIZE_PER_BLOCK-1 && 0 < localIdxY && localIdxY < MATRIX_SIZE_PER_BLOCK-1) {
+  if (0 < localIdxX && localIdxX < MATRIX_SIZE_PER_BLOCK-1 && 0 <= localIdxY && localIdxY < MATRIX_SIZE_PER_BLOCK-1) {
     for (int i = 0; i < kernel_size; i++) {
       for (int j = 0; j < kernel_size; j++) {
-        int vertical_offset = (localIdxY + (int)floor((float)i/kernel_size) - (int)floor(kernel_size/2.0))*MATRIX_SIZE_PER_BLOCK;
-        int horizontal_offset = localIdxX + (i%kernel_size - (int)floor(kernel_size/2.0));
-        int tmp_index = vertical_offset + horizontal_offset;
+        int vertical_offset = ((localIdxY + i) - (int)floor(kernel_size/2.0));
+        int horizontal_offset = (localIdxX + j) - (int)floor(kernel_size/2.0);
+        int tmp_index = vertical_offset*MATRIX_SIZE_PER_BLOCK + horizontal_offset;
 
         convolution_result += shared_matrix[tmp_index] * kernel[i*kernel_size + j];
       }
-    }
+    }  
   }
-
+  
   matrix[current_matrix_index] = convolution_result;
 }
 
 int main(int argc, char **argv) {
   test_sobel_feldman();
+
+  printf(" === \n");
+  cudaDeviceSynchronize();
+  cudaError_t error = cudaPeekAtLastError();
+  printf("Error: %s\n", cudaGetErrorString(error));
 
   return 0;
 }

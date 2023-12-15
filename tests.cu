@@ -31,13 +31,13 @@ void test_sobel_feldman() {
 
   sobel_feldman(buffer, matrix_width, matrix_height);
   
-  printf("===\n");
+  /*printf("===\n");
   for (int i = 0; i < matrix_height; i++) {
     for (int j = 0; j < matrix_width; j++) {
       printf("%c ", buffer[i][j] + '0');
     }
     printf("\n");
-  }
+  }*/
   
   for (int i = 0; i < matrix_height; i++) {
     free(buffer[i]);
