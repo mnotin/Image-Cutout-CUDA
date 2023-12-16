@@ -42,7 +42,15 @@ __global__ void convolution(unsigned char *matrix, int matrix_width, int matrix_
 }
 
 int main(int argc, char **argv) {
-  test_sobel_feldman();
+  if (argc != 2) {
+    printf("Please provide the name of the file that has to be processed.\n");
+    printf("Usage: ./binary filename.pgm\n");
+    exit(EXIT_FAILURE);
+  }
+
+  char *filename = argv[1];
+
+  test_sobel_feldman(filename);
 
   printf(" === \n");
   cudaDeviceSynchronize();

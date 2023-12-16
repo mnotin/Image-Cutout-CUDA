@@ -5,8 +5,8 @@
 #include "edge_detection.h"
 #include "img.h"
 
-void test_sobel_feldman() {
-  GrayImage* grayImage = readPGM("circle_sample.pgm");
+void test_sobel_feldman(char *filename) {
+  GrayImage* grayImage = readPGM(filename);
 
   if (grayImage == NULL) {
     printf("Error reading the image\n");
