@@ -13,6 +13,7 @@ void test_sobel_feldman(char *filename) {
     exit(EXIT_FAILURE);
   } 
   
+  gaussian_blur(grayImage->data, grayImage->width, grayImage->height);
   sobel_feldman(grayImage->data, grayImage->width, grayImage->height);
   
   writePGM("sobel_feldman_output.pgm", grayImage);
