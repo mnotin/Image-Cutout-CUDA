@@ -12,8 +12,11 @@ void test_sobel_feldman(char *filename) {
     printf("Error reading the image\n");
     exit(EXIT_FAILURE);
   } 
-  
-  gaussian_blur(grayImage->data, grayImage->width, grayImage->height);
+
+  for (int i = 0; i < 10; i++) {
+    gaussian_blur(grayImage->data, grayImage->width, grayImage->height);
+    cudaDeviceSynchronize();
+  }
   sobel_feldman(grayImage->data, grayImage->width, grayImage->height);
   
   writePGM("sobel_feldman_output.pgm", grayImage);

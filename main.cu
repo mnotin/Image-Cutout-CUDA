@@ -34,8 +34,8 @@ __global__ void convolution(unsigned char *input_matrix, unsigned char *output_m
   if (localIdxX == 0 && localIdxY == 0) {
     // Fill the edges
     for (int i = 0; i < MATRIX_SIZE_PER_BLOCK+2; i++) {
-      shared_matrix[i] = globalIdxY == 0 ? 0 : input_matrix[(globalIdxY-1)*matrix_width + globalIdxX + i - 1]; // First line
-      shared_matrix[(MATRIX_SIZE_PER_BLOCK+2)*(MATRIX_SIZE_PER_BLOCK+1)+i] = globalIdxY == matrix_height-1 ? 0 :
+      shared_matrix[i] = globalIdxY == 0 || (globalIdxX == 0 && i == 0) ? 0 : input_matrix[(globalIdxY-1)*matrix_width + globalIdxX + i - 1]; // First line
+      shared_matrix[(MATRIX_SIZE_PER_BLOCK+2)*(MATRIX_SIZE_PER_BLOCK+1)+i] = globalIdxY+MATRIX_SIZE_PER_BLOCK == matrix_height ? 0 :
         input_matrix[(globalIdxY+MATRIX_SIZE_PER_BLOCK+1)*matrix_width + globalIdxX + i - 1]; // Last line
     }
 
@@ -59,7 +59,7 @@ __global__ void convolution(unsigned char *input_matrix, unsigned char *output_m
     }
   }  
   
-  output_matrix[current_matrix_index] = convolution_result;
+  output_matrix[current_matrix_index] = abs(convolution_result);
 }
 
 int main(int argc, char **argv) {
