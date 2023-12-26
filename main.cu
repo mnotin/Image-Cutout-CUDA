@@ -32,14 +32,15 @@ __global__ void convolution(unsigned char *input_matrix, unsigned char *output_m
    */
   shared_matrix[MATRIX_SIZE_PER_BLOCK+2+1+2*(localIdxY) + current_shared_matrix_index] = input_matrix[current_matrix_index];
   if (localIdxX == 0 && localIdxY == 0 && 0 < globalIdxX && globalIdxX < matrix_width-1 && 0 < globalIdxY && globalIdxY < matrix_height-1) {
+    // Fill the edges
     for (int i = 0; i < MATRIX_SIZE_PER_BLOCK+2; i++) {
      shared_matrix[i] = input_matrix[(globalIdxY-1)*matrix_width + globalIdxX + i - 1]; // First line
-     shared_matrix[(MATRIX_SIZE_PER_BLOCK+2)*(MATRIX_SIZE_PER_BLOCK+1)] = input_matrix[(globalIdxY+1)*matrix_width + globalIdxX + i - 1]; // Last line
+     shared_matrix[(MATRIX_SIZE_PER_BLOCK+2)*(MATRIX_SIZE_PER_BLOCK+1)+i] = input_matrix[(globalIdxY+MATRIX_SIZE_PER_BLOCK+1)*matrix_width + globalIdxX + i - 1]; // Last line
     }
 
     for (int i = 0; i < MATRIX_SIZE_PER_BLOCK; i++) {
-     shared_matrix[MATRIX_SIZE_PER_BLOCK+2 + i*(MATRIX_SIZE_PER_BLOCK+2)] = input_matrix[globalIdxY*matrix_width + globalIdxX - 1]; // Left side
-     shared_matrix[MATRIX_SIZE_PER_BLOCK+2 + (i+1)*(MATRIX_SIZE_PER_BLOCK+2) - 1] = input_matrix[globalIdxY*matrix_width + globalIdxX + 1]; // Right side
+     shared_matrix[MATRIX_SIZE_PER_BLOCK+2 + i*(MATRIX_SIZE_PER_BLOCK+2)] = input_matrix[(globalIdxY+i)*matrix_width + globalIdxX - 1]; // Left side
+     shared_matrix[MATRIX_SIZE_PER_BLOCK+2 + (i+1)*(MATRIX_SIZE_PER_BLOCK+2) - 1] = input_matrix[(globalIdxY+i)*matrix_width + globalIdxX+MATRIX_SIZE_PER_BLOCK + 1]; // Right side
     }
   }
   __syncthreads();
@@ -51,9 +52,9 @@ __global__ void convolution(unsigned char *input_matrix, unsigned char *output_m
       for (int j = 0; j < kernel_size; j++) {
         int vertical_offset = ((localIdxY + i) - (int)floor(kernel_size/2.0));
         int horizontal_offset = (localIdxX + j) - (int)floor(kernel_size/2.0);
-        int tmp_index = vertical_offset*MATRIX_SIZE_PER_BLOCK + horizontal_offset;
-
-        convolution_result += shared_matrix[MATRIX_SIZE_PER_BLOCK+2+1+2*(localIdxY) + tmp_index] * kernel[i*kernel_size + j];
+        int tmp_index = vertical_offset*(MATRIX_SIZE_PER_BLOCK+2) + horizontal_offset;
+       
+        convolution_result += shared_matrix[MATRIX_SIZE_PER_BLOCK+2+1 + tmp_index] * kernel[i*kernel_size + j];
       }
     }  
   } else {
