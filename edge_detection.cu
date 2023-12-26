@@ -40,6 +40,9 @@ void rgb_to_gray(RGBImage *h_rgb_image, GrayImage *h_gray_image)  {
 
   // Copy result from device to host
   cudaMemcpy(h_gray_image->data, d_gray_image, h_gray_image->width * h_gray_image->height, cudaMemcpyDeviceToHost);
+
+  cudaFree(d_rgb_image);
+  cudaFree(d_gray_image);
 }
 
 /**
