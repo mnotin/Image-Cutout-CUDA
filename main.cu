@@ -49,19 +49,15 @@ __global__ void convolution(unsigned char *input_matrix, unsigned char *output_m
 
   float convolution_result = 0;
 
-  if (0 < globalIdxX && globalIdxX < matrix_width-1 && 0 < globalIdxY && globalIdxY < matrix_height-1) {
-    for (int i = 0; i < kernel_size; i++) {
-      for (int j = 0; j < kernel_size; j++) {
-        int vertical_offset = ((localIdxY + i) - (int)floor(kernel_size/2.0));
-        int horizontal_offset = (localIdxX + j) - (int)floor(kernel_size/2.0);
-        int tmp_index = vertical_offset*(MATRIX_SIZE_PER_BLOCK+2) + horizontal_offset;
+  for (int i = 0; i < kernel_size; i++) {
+    for (int j = 0; j < kernel_size; j++) {
+      int vertical_offset = ((localIdxY + i) - (int)floor(kernel_size/2.0));
+      int horizontal_offset = (localIdxX + j) - (int)floor(kernel_size/2.0);
+      int tmp_index = vertical_offset*(MATRIX_SIZE_PER_BLOCK+2) + horizontal_offset;
        
-        convolution_result += shared_matrix[MATRIX_SIZE_PER_BLOCK+2+1 + tmp_index] * kernel[i*kernel_size + j];
-      }
-    }  
-  } else {
-    // Matrix border
-  }
+      convolution_result += shared_matrix[MATRIX_SIZE_PER_BLOCK+2+1 + tmp_index] * kernel[i*kernel_size + j];
+    }
+  }  
   
   output_matrix[current_matrix_index] = convolution_result;
 }
