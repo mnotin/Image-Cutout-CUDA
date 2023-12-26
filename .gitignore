@@ -2,3 +2,4 @@ img.h
 img.cpp
 main
 *.pgm
+*.ppm
