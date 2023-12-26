@@ -28,9 +28,9 @@ void test_sobel_feldman(char *filename) {
   sobel_feldman(gray_image->data, gray_image->width, gray_image->height);
 
   // 4. Last step, cutout the object selected by the user
-  //cutout(gray_image->data, gray_image->width, gray_image->height, 0, 0);
+  cutout(rgb_image->data, gray_image->data, gray_image->width, gray_image->height, 0, 0);
   
-  writePGM("sobel_feldman_output.pgm", gray_image);
+  writePPM("sobel_feldman_output.ppm", rgb_image);
 
   destroyPPM(rgb_image);
   destroyPGM(gray_image);  
