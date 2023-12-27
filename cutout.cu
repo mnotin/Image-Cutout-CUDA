@@ -7,10 +7,9 @@
 #include "utils.h"
 
 void cutout(unsigned char *h_rgb_image, unsigned char *h_edge_matrix, int matrix_width, int matrix_height, int start_pixel_x, int start_pixel_y) {
-  int *h_done = (int *) malloc(sizeof(int));
+  int h_done = 0;
   unsigned char **h_cutout_matrix;
 
-  *h_done = 0;
   h_cutout_matrix = (unsigned char **) malloc(matrix_height * sizeof(unsigned char*));
   for (int i = 0; i < matrix_height; i++) {
     h_cutout_matrix[i] = (unsigned char *) malloc(matrix_width * sizeof(unsigned char));
@@ -37,17 +36,16 @@ void cutout(unsigned char *h_rgb_image, unsigned char *h_edge_matrix, int matrix
   for (int i = 0; i < matrix_height; i++) {
     cudaMemcpy(d_cutout_matrix+i*matrix_width, h_cutout_matrix[i], matrix_width * sizeof(unsigned char), cudaMemcpyHostToDevice);
   }
-  cudaMemcpy(d_done, h_done, sizeof(int), cudaMemcpyHostToDevice);
   
   dim3 threads = dim3(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
   dim3 blocks = dim3(matrix_width/MATRIX_SIZE_PER_BLOCK, matrix_height/MATRIX_SIZE_PER_BLOCK);
   draw_edges_on_cutout_matrix<<<blocks, threads>>>(d_edge_matrix, d_cutout_matrix, matrix_width, matrix_height, start_pixel_x, start_pixel_y);
 
-  while (*h_done == 0) {
-    *h_done = 1;
-    cudaMemcpy(d_done, h_done, sizeof(int), cudaMemcpyHostToDevice);
+  while (h_done == 0) {
+    h_done = 1;
+    cudaMemcpy(d_done, &h_done, sizeof(int), cudaMemcpyHostToDevice);
     cutout_algorithm<<<blocks, threads>>>(d_cutout_matrix, matrix_width, matrix_height, d_done);
-    cudaMemcpy(h_done, d_done, sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&h_done, d_done, sizeof(int), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
   }
   apply_cutout<<<blocks, threads>>>(d_cutout_matrix, d_rgb_image, matrix_width, matrix_height, start_pixel_x, start_pixel_y);
