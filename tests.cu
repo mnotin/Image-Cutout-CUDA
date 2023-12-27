@@ -2,8 +2,10 @@
 
 #include "tests.h"
 #include "main.h"
-#include "edge_detection.h"
+#include "utils.h"
 #include "img.h"
+#include "sobel_feldman.h"
+#include "cutout.h"
 
 void test_sobel_feldman(char *filename, int start_pixel_x, int start_pixel_y) {
   RGBImage *rgb_image = readPPM(filename);
@@ -19,7 +21,7 @@ void test_sobel_feldman(char *filename, int start_pixel_x, int start_pixel_y) {
 
   // 2. Second step, smooth the image using a Gaussian blur
   // to remove possible noise in the picture
-  for (int i = 0; i < 1; i++) {
+  for (int i = 0; i < 5; i++) {
     gaussian_blur(gray_image->data, gray_image->width, gray_image->height);
     cudaDeviceSynchronize();
   }

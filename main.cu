@@ -3,8 +3,7 @@
 #include <cuda_runtime.h>
 
 #include "main.h"
-#include "edge_detection.h"
-
+#include "utils.h"
 #include "tests.h"
 
 /**

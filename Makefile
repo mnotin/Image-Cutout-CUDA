@@ -1,5 +1,5 @@
-main: main.cu img.cpp edge_detection.cu
-	nvcc -o main main.cu img.cpp edge_detection.cu -lm
+main: main.cu img.cpp sobel_feldman.cu cutout.cu utils.cu
+	nvcc -o main main.cu img.cpp sobel_feldman.cu cutout.cu utils.cu -lm
 
-tests: main.cu img.cpp edge_detection.cu tests.cu
-	nvcc -o main main.cu img.cpp edge_detection.cu tests.cu -lm
+tests: main.cu img.cpp tests.cu sobel_feldman.cu cutout.cu utils.cu
+	nvcc -o main main.cu img.cpp tests.cu sobel_feldman.cu cutout.cu utils.cu -lm
