@@ -4,12 +4,16 @@
 #include "main.h"
 #include "utils.h"
 #include "img.h"
-#include "edge_detection/sobel_feldman.h"
 #include "cutout.h"
+
+#include "edge_detection/sobel_feldman.h"
+#include "edge_detection/canny.h"
 
 void test_sobel_feldman(char *filename, int start_pixel_x, int start_pixel_y) {
   RGBImage *rgb_image = readPPM(filename);
   GrayImage *gray_image = createPGM(rgb_image->width, rgb_image->height);
+  GrayImage *gradient_image = createPGM(rgb_image->width, rgb_image->height);
+  float *angle_image = (float *) malloc(rgb_image->width * rgb_image->height * sizeof(float));
 
   if (rgb_image == NULL) {
     printf("Error reading the image\n");
@@ -27,14 +31,18 @@ void test_sobel_feldman(char *filename, int start_pixel_x, int start_pixel_y) {
   }
 
   // 3. Third step, apply the Sobel-Feldman operator to detect edges of shapes
-  sobel_feldman(gray_image->data, gray_image->width, gray_image->height);
-  writePGM("sobel_feldman_output.pgm", gray_image);
+  sobel_feldman(gray_image->data, gradient_image->data, angle_image, gray_image->width, gray_image->height);
+  writePGM("sf_gradient_output.pgm", gradient_image);
+  canny(gradient_image->data, angle_image, gray_image->width, gray_image->height); 
+  writePGM("canny_output.pgm", gradient_image);
 
   // 4. Last step, cutout the object selected by the user
-  cutout(rgb_image->data, gray_image->data, gray_image->width, gray_image->height, start_pixel_x, start_pixel_y);
+  cutout(rgb_image->data, gradient_image->data, gray_image->width, gray_image->height, start_pixel_x, start_pixel_y);
   
   writePPM("cutout_output.ppm", rgb_image);
 
   destroyPPM(rgb_image);
   destroyPGM(gray_image);  
+  destroyPGM(gradient_image);  
+  free(angle_image);  
 }
