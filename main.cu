@@ -41,7 +41,7 @@ __global__ void convolution(unsigned char *input_matrix, unsigned char *output_m
     for (int i = 0; i < MATRIX_SIZE_PER_BLOCK; i++) {
       shared_matrix[MATRIX_SIZE_PER_BLOCK+2 + i*(MATRIX_SIZE_PER_BLOCK+2)] = globalIdxX == 0 ? 0 : input_matrix[(globalIdxY+i)*matrix_width + globalIdxX - 1]; // Left side
       shared_matrix[MATRIX_SIZE_PER_BLOCK+2 + (i+1)*(MATRIX_SIZE_PER_BLOCK+2) - 1] = globalIdxX == matrix_width-1 ? 0 :
-        input_matrix[(globalIdxY+i)*matrix_width + globalIdxX+MATRIX_SIZE_PER_BLOCK + 1]; // Right side
+        input_matrix[(globalIdxY+i)*matrix_width + globalIdxX+MATRIX_SIZE_PER_BLOCK]; // Right side
     }
   }
   __syncthreads();
