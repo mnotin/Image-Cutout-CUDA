@@ -17,8 +17,7 @@ void sobel_feldman(unsigned char *h_matrix, int matrix_width, int matrix_height)
                                                                    1, 0, -1};
   float sobel_kernel_vertical_kernel[KERNEL_SIZE*KERNEL_SIZE] = { 1,  2,  1,
                                                                   0,  0,  0,
-                                                                 -1, -2, -1};
- 
+                                                                 -1, -2, -1}; 
   unsigned char *d_input_matrix;
   unsigned char *d_output_matrix;
   unsigned char *d_horizontal_edges;

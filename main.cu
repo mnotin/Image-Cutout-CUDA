@@ -13,11 +13,11 @@
 __global__ void convolution(unsigned char *input_matrix, unsigned char *output_matrix, int matrix_width, int matrix_height, float *kernel, int kernel_size) {
   int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
-  int localIdxX = globalIdxX % MATRIX_SIZE_PER_BLOCK;
-  int localIdxY = globalIdxY % MATRIX_SIZE_PER_BLOCK;
+  int localIdxX = threadIdx.x;
+  int localIdxY = threadIdx.y;
   
   int current_matrix_index = globalIdxY*matrix_width + globalIdxX;
-  int current_shared_matrix_index = localIdxY*MATRIX_SIZE_PER_BLOCK + localIdxX;
+  int current_shared_matrix_index = MATRIX_SIZE_PER_BLOCK+2+1+ localIdxY*(MATRIX_SIZE_PER_BLOCK+2) + localIdxX;
 
   __shared__ unsigned char shared_matrix[(MATRIX_SIZE_PER_BLOCK+2)*(MATRIX_SIZE_PER_BLOCK+2)];
 
@@ -29,13 +29,13 @@ __global__ void convolution(unsigned char *input_matrix, unsigned char *output_m
    * x o o o o x
    * x x x x x x
    */
-  shared_matrix[MATRIX_SIZE_PER_BLOCK+2+1+2*(localIdxY) + current_shared_matrix_index] = input_matrix[current_matrix_index];
+  shared_matrix[current_shared_matrix_index] = input_matrix[current_matrix_index];
   if (localIdxX == 0 && localIdxY == 0) {
     // Fill the edges
     for (int i = 0; i < MATRIX_SIZE_PER_BLOCK+2; i++) {
       shared_matrix[i] = globalIdxY == 0 || (globalIdxX == 0 && i == 0) ? 0 : input_matrix[(globalIdxY-1)*matrix_width + globalIdxX + i - 1]; // First line
       shared_matrix[(MATRIX_SIZE_PER_BLOCK+2)*(MATRIX_SIZE_PER_BLOCK+1)+i] = globalIdxY+MATRIX_SIZE_PER_BLOCK == matrix_height ? 0 :
-        input_matrix[(globalIdxY+MATRIX_SIZE_PER_BLOCK+1)*matrix_width + globalIdxX + i - 1]; // Last line
+        input_matrix[(globalIdxY+MATRIX_SIZE_PER_BLOCK)*matrix_width + globalIdxX + i - 1]; // Last line
     }
 
     for (int i = 0; i < MATRIX_SIZE_PER_BLOCK; i++) {
