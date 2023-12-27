@@ -8,13 +8,8 @@
 
 void cutout(unsigned char *h_rgb_image, unsigned char *h_edge_matrix, int matrix_width, int matrix_height, int start_pixel_x, int start_pixel_y) {
   int h_done = 0;
-  unsigned char **h_cutout_matrix;
-
-  h_cutout_matrix = (unsigned char **) malloc(matrix_height * sizeof(unsigned char*));
-  for (int i = 0; i < matrix_height; i++) {
-    h_cutout_matrix[i] = (unsigned char *) malloc(matrix_width * sizeof(unsigned char));
-  }
-  
+  unsigned char h_cutout_matrix[matrix_height][matrix_width];
+ 
   for (int i = 0; i < matrix_height; i++) {
     for (int j = 0; j < matrix_width; j++) {
       h_cutout_matrix[i][j] = 'D';
