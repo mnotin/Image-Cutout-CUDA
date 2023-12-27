@@ -63,15 +63,17 @@ __global__ void convolution(unsigned char *input_matrix, unsigned char *output_m
 }
 
 int main(int argc, char **argv) {
-  if (argc != 2) {
+  if (argc != 4) {
     printf("Please provide the name of the file that has to be processed.\n");
-    printf("Usage: ./binary filename.pgm\n");
+    printf("Usage: ./binary filename.ppm start_pixel_x start_pixel_y\n");
     exit(EXIT_FAILURE);
   }
 
   char *filename = argv[1];
+  int start_pixel_x = atoi(argv[2]);
+  int start_pixel_y = atoi(argv[3]);
 
-  test_sobel_feldman(filename);
+  test_sobel_feldman(filename, start_pixel_x, start_pixel_y);
 
   printf(" === \n");
   cudaDeviceSynchronize();
