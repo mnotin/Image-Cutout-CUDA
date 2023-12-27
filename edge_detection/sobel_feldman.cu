@@ -3,8 +3,8 @@
 #include <cuda_runtime.h>
 
 #include "sobel_feldman.h"
-#include "main.h"
-#include "utils.h"
+#include "../main.h"
+#include "../utils.h"
 
 /**
  * Applies the Sobel-Feldman operator over a matrix.

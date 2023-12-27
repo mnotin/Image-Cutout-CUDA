@@ -4,7 +4,7 @@
 #include "main.h"
 #include "utils.h"
 #include "img.h"
-#include "sobel_feldman.h"
+#include "edge_detection/sobel_feldman.h"
 #include "cutout.h"
 
 void test_sobel_feldman(char *filename, int start_pixel_x, int start_pixel_y) {

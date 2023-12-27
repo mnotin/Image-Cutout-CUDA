@@ -50,7 +50,7 @@ void cutout(unsigned char *h_rgb_image, unsigned char *h_edge_matrix, int matrix
     cudaMemcpy(h_done, d_done, sizeof(int), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
   }
-  apply_cutout<<<blocks, threads>>>(d_cutout_matrix, d_rgb_image, matrix_width, matrix_height);
+  apply_cutout<<<blocks, threads>>>(d_cutout_matrix, d_rgb_image, matrix_width, matrix_height, start_pixel_x, start_pixel_y);
 
   cudaMemcpy(h_rgb_image, d_rgb_image, 3 * matrix_width * matrix_height * sizeof(unsigned char), cudaMemcpyDeviceToHost);
 
@@ -64,7 +64,7 @@ __global__ void draw_edges_on_cutout_matrix(unsigned char *edge_matrix, unsigned
   int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
 
-  int threshold = 52;
+  int threshold = 51;
 
   if (globalIdxX < matrix_width && globalIdxY < matrix_height && threshold < edge_matrix[globalIdxY*matrix_width + globalIdxX]) {
     cutout_matrix[globalIdxY*matrix_width + globalIdxX] = 'B'; 
@@ -124,11 +124,15 @@ __global__ void cutout_algorithm(unsigned char *cutout_matrix, int matrix_width,
   }
 }
 
-__global__ void apply_cutout(unsigned char *cutout_matrix, unsigned char *output_image, int image_width, int image_height) { 
+__global__ void apply_cutout(unsigned char *cutout_matrix, unsigned char *output_image, int image_width, int image_height, int start_pixel_x, int start_pixel_y) { 
   int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
  
-  if (cutout_matrix[globalIdxY*image_width + globalIdxX] != 'M') {
+  if (globalIdxX == start_pixel_x && globalIdxY == start_pixel_y) {
+    output_image[3 * (globalIdxY*image_width + globalIdxX)] = 255;
+    output_image[3 * (globalIdxY*image_width + globalIdxX) + 1] = 0; 
+    output_image[3 * (globalIdxY*image_width + globalIdxX) + 2] = 0; 
+  } else if (cutout_matrix[globalIdxY*image_width + globalIdxX] != 'M') {
     output_image[3 * (globalIdxY*image_width + globalIdxX)] = 0; 
     output_image[3 * (globalIdxY*image_width + globalIdxX) + 1] = 0; 
     output_image[3 * (globalIdxY*image_width + globalIdxX) + 2] = 0; 
