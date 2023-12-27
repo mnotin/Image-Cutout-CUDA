@@ -46,23 +46,22 @@ __global__ void non_maximum_suppression(unsigned char *gradient_matrix, float *a
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
   const int GLOBAL_IDX = globalIdxY*matrix_width + globalIdxX;
 
-  const float PI = 3.141592;
   const float ANGLE = abs(angle_matrix[GLOBAL_IDX]);
   unsigned char final_value = gradient_matrix[GLOBAL_IDX];
   
-  if (ANGLE < PI / 8.0 || (PI / 8.0) * 7 < ANGLE) {
+  if (ANGLE < M_PI / 8.0 || (M_PI / 8.0) * 7 < ANGLE) {
     // Horizontal gradient direction
     if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - 1] || 
         gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + 1]) {
       final_value = 0;
     }
-  } else if (PI / 8.0 < ANGLE && ANGLE < (PI / 8.0) * 3) {
+  } else if (M_PI / 8.0 < ANGLE && ANGLE < (M_PI / 8.0) * 3) {
     // Top right gradient direction
     if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - matrix_width + 1] || 
         gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + matrix_width - 1]) {
       final_value = 0;
     }
-  } else if ((PI / 8.0) * 5 < ANGLE && ANGLE < (PI / 8.0) * 7) {
+  } else if ((M_PI / 8.0) * 5 < ANGLE && ANGLE < (M_PI / 8.0) * 7) {
     // Top left gradient direction
     if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - matrix_width - 1] || 
         gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + matrix_width + 1]) {
