@@ -1,5 +1,6 @@
 #include <cuda_runtime.h>
 #include <math.h>
+#include <stdio.h>
 
 #include "../main.h"
 #include "canny.h"
@@ -46,35 +47,35 @@ __global__ void non_maximum_suppression(unsigned char *gradient_matrix, float *a
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
   const int GLOBAL_IDX = globalIdxY*matrix_width + globalIdxX;
 
-  const float ANGLE = abs(angle_matrix[GLOBAL_IDX]);
+  const float ANGLE = angle_matrix[GLOBAL_IDX] + M_PI_2;
   unsigned char final_value = gradient_matrix[GLOBAL_IDX];
   
   if (ANGLE < M_PI / 8.0 || (M_PI / 8.0) * 7 < ANGLE) {
-    // Horizontal gradient direction
-    if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - 1] || 
-        gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + 1]) {
+    // Vertical gradient direction : Yellow
+    if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - matrix_width] || 
+        gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + matrix_width]) {
       final_value = 0;
     }
   } else if (M_PI / 8.0 < ANGLE && ANGLE < (M_PI / 8.0) * 3) {
-    // Top right gradient direction
-    if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - matrix_width] || 
-        gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + matrix_width]) {
+    // Top right gradient direction : Green
+    if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - matrix_width + 1] || 
+        gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + matrix_width - 1]) {
       final_value = 0;
     }
   } else if ((M_PI / 8.0) * 5 < ANGLE && ANGLE < (M_PI / 8.0) * 7) {
-    // Top left gradient direction
+    // Top left gradient direction : Red
+    if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - matrix_width - 1] || 
+        gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + matrix_width + 1]) {
+      final_value = 0;
+    }
+  } else {
+    // Horizontal gradient direction : Blue
     if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - 1] || 
         gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + 1]) {
       final_value = 0;
     }
-  } else {
-    // Vertical gradient direction
-    if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - matrix_width] || 
-        gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + matrix_width]) {
-      final_value = 0;
-    }
   }
-
+  
   gradient_matrix[GLOBAL_IDX] = final_value; 
 }
 

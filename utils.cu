@@ -52,12 +52,13 @@ void gaussian_blur(unsigned char *h_matrix, int matrix_width, int matrix_height)
   float gaussian_blur_kernel[KERNEL_WIDTH*KERNEL_WIDTH] = {1/16.0, 2/16.0, 1/16.0, 
                                                          2/16.0, 4/16.0, 2/16.0, 
                                                          1/16.0, 2/16.0, 1/16.0};
+  int h_int_matrix[matrix_width*matrix_height];
  
   unsigned char *d_input_matrix;
-  unsigned char *d_output_matrix;
+  int *d_output_matrix;
   float *d_kernel;
   cudaMalloc((void **) &d_input_matrix, matrix_width * matrix_height * sizeof(unsigned char));
-  cudaMalloc((void **) &d_output_matrix, matrix_width * matrix_height * sizeof(unsigned char));
+  cudaMalloc((void **) &d_output_matrix, matrix_width * matrix_height * sizeof(int));
   cudaMalloc((void **) &d_kernel, KERNEL_WIDTH*KERNEL_WIDTH * sizeof(float));
 
   cudaMemcpy(d_input_matrix, h_matrix, matrix_width*matrix_height*sizeof(unsigned char), cudaMemcpyHostToDevice);
@@ -68,7 +69,13 @@ void gaussian_blur(unsigned char *h_matrix, int matrix_width, int matrix_height)
   printf("Nombre de blocs lancés: %d %d\n", blocks.x, blocks.y);
   convolution<<<blocks, threads>>>(d_input_matrix, d_output_matrix, matrix_width, matrix_height, d_kernel, KERNEL_WIDTH);
  
-  cudaMemcpy(h_matrix, d_output_matrix, matrix_width*matrix_height*sizeof(unsigned char), cudaMemcpyDeviceToHost);
+  cudaMemcpy(h_int_matrix, d_output_matrix, matrix_width*matrix_height*sizeof(int), cudaMemcpyDeviceToHost);
+
+  for (int i = 0; i < matrix_height; i++) {
+    for (int j = 0; j < matrix_width; j++) {
+      h_matrix[i*matrix_width + j] = h_int_matrix[i*matrix_width + j];
+    }
+  }
 
   cudaFree(d_input_matrix);
   cudaFree(d_output_matrix);

@@ -10,7 +10,7 @@
  * Applies discrete convolution over a matrix using a given kernel.
  * This kernel should be called using appropriate number of grids, blocks and threads to match the resolution of the image.
  **/
-__global__ void convolution(unsigned char *input_matrix, unsigned char *output_matrix, int matrix_width, int matrix_height, float *kernel, int kernel_size) {
+__global__ void convolution(unsigned char *input_matrix, int *output_matrix, int matrix_width, int matrix_height, float *kernel, int kernel_size) {
   int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
   int localIdxX = threadIdx.x;
@@ -46,7 +46,7 @@ __global__ void convolution(unsigned char *input_matrix, unsigned char *output_m
   }
   __syncthreads();
 
-  float convolution_result = 0;
+  int convolution_result = 0;
 
   for (int i = 0; i < kernel_size; i++) {
     for (int j = 0; j < kernel_size; j++) {
@@ -56,9 +56,13 @@ __global__ void convolution(unsigned char *input_matrix, unsigned char *output_m
        
       convolution_result += shared_matrix[MATRIX_SIZE_PER_BLOCK+2+1 + tmp_index] * kernel[i*kernel_size + j];
     }
-  }  
+  }
+
+  if (255 < abs(convolution_result)) {
+    convolution_result = convolution_result < 0 ? -255 : 255;
+  }
   
-  output_matrix[current_matrix_index] = abs(convolution_result) <= 255.0 ? (unsigned char) abs(convolution_result) : 255;
+  output_matrix[current_matrix_index] = convolution_result;
 }
 
 int main(int argc, char **argv) {

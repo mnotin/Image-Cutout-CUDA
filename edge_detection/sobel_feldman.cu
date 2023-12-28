@@ -23,15 +23,15 @@ void sobel_feldman(unsigned char *h_input_matrix, unsigned char *h_gradient_matr
 
   unsigned char *d_input_matrix;
   unsigned char *d_gradient_matrix;
-  unsigned char *d_horizontal_gradient;
-  unsigned char *d_vertical_gradient;
+  int *d_horizontal_gradient;
+  int *d_vertical_gradient;
   float *d_angle_matrix;
   float *d_kernel;
 
   cudaMalloc((void **) &d_input_matrix, matrix_width * matrix_height * sizeof(unsigned char));
   cudaMalloc((void **) &d_gradient_matrix, matrix_width * matrix_height * sizeof(unsigned char));
-  cudaMalloc((void **) &d_horizontal_gradient, matrix_width * matrix_height * sizeof(unsigned char));
-  cudaMalloc((void **) &d_vertical_gradient, matrix_width * matrix_height * sizeof(unsigned char));
+  cudaMalloc((void **) &d_horizontal_gradient, matrix_width * matrix_height * sizeof(int));
+  cudaMalloc((void **) &d_vertical_gradient, matrix_width * matrix_height * sizeof(int));
   cudaMalloc((void **) &d_angle_matrix, matrix_width * matrix_height * sizeof(float));
   cudaMalloc((void **) &d_kernel, KERNEL_SIZE*KERNEL_SIZE * sizeof(float));
 
@@ -69,26 +69,28 @@ void sobel_feldman(unsigned char *h_input_matrix, unsigned char *h_gradient_matr
 /**
  * Computes the global gradient of an image after being processed by the Sobel-Feldman operator.
  **/
-__global__ void global_gradient(unsigned char *matrix, unsigned char *horizontal_edges, unsigned char *vertical_edges, int matrix_width, int matrix_height) {
+__global__ void global_gradient(unsigned char *output_matrix, int *horizontal_edges, int *vertical_edges, int matrix_width, int matrix_height) {
   int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
   const int GLOBAL_IDX = globalIdxY * matrix_width + globalIdxX;
 
-  unsigned char g_x = horizontal_edges[GLOBAL_IDX];
-  unsigned char g_y = vertical_edges[GLOBAL_IDX];
+  int g_x = horizontal_edges[GLOBAL_IDX];
+  int g_y = vertical_edges[GLOBAL_IDX];
   float global_gradient = sqrt((double) g_x * g_x + g_y * g_y);
 
-  matrix[GLOBAL_IDX] = global_gradient <= 255.0 ? (unsigned char) global_gradient : 255;
+  output_matrix[GLOBAL_IDX] = global_gradient <= 255.0 ? (unsigned char) global_gradient : 255;
 }
 
-__global__ void angle(unsigned char *horizontal_edges, unsigned char *vertical_edges, float *angle_matrix, int matrix_width, int matrix_height) {
+__global__ void angle(int *horizontal_gradient, int *vertical_gradient, float *angle_matrix, int matrix_width, int matrix_height) {
   int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
+  const int GLOBAL_IDX = globalIdxY * matrix_width + globalIdxX;
 
-  int g_x = horizontal_edges[globalIdxY*matrix_width + globalIdxX];
-  int g_y = vertical_edges[globalIdxY*matrix_width + globalIdxX];
+  int g_x = horizontal_gradient[GLOBAL_IDX];
+  int g_y = vertical_gradient[GLOBAL_IDX];
+  float angle = atan((float) g_y / g_x);
 
-  angle_matrix[globalIdxY*matrix_width + globalIdxX] = atan((float) g_y / g_x);
+  angle_matrix[GLOBAL_IDX] = angle; 
 }
 
 void generate_edge_color(unsigned char *h_gradient_matrix, float *h_angle_matrix, unsigned char *h_output_image, int matrix_width, int matrix_height) {
@@ -124,7 +126,7 @@ __global__ void edge_color(unsigned char *gradient_matrix, float *angle_matrix, 
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
   const int GLOBAL_IDX = globalIdxY * image_width + globalIdxX;
 
-  const float ANGLE = abs(angle_matrix[GLOBAL_IDX]);
+  const float ANGLE = angle_matrix[GLOBAL_IDX] + M_PI_2;
   
   if (50 < gradient_matrix[GLOBAL_IDX]) {
     if (ANGLE < M_PI / 8.0 || (M_PI / 8.0) * 7 < ANGLE) {
