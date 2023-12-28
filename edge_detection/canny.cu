@@ -6,7 +6,7 @@
 #include "canny.h"
 
 void canny(unsigned char *h_gradient_matrix, float *h_angle_matrix, int matrix_width, int matrix_height) {
-  int h_done = 1;
+  int h_done = 0;
 
   unsigned char *d_gradient_matrix;
   float *d_angle_matrix;
@@ -49,32 +49,43 @@ __global__ void non_maximum_suppression(unsigned char *gradient_matrix, float *a
 
   const float ANGLE = angle_matrix[GLOBAL_IDX] + M_PI_2;
   unsigned char final_value = gradient_matrix[GLOBAL_IDX];
-  
-  if (ANGLE <= M_PI / 8.0 || (M_PI / 8.0) * 7 <= ANGLE) {
+
+  if (get_color_canny(ANGLE) == 'Y') {
     // Vertical gradient direction : Yellow
-    if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - matrix_width] || 
-        gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + matrix_width]) {
+    if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - matrix_width] && 
+          get_color_canny(angle_matrix[GLOBAL_IDX - matrix_width] + M_PI_2) == 'Y' || 
+        gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + matrix_width] &&
+          get_color_canny(angle_matrix[GLOBAL_IDX + matrix_width] + M_PI_2) == 'Y') {
       final_value = 0;
     }
-  } else if (M_PI / 8.0 <= ANGLE && ANGLE <= (M_PI / 8.0) * 3) {
+  } else if (get_color_canny(ANGLE) == 'G') {
     // Top right gradient direction : Green
-    if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - matrix_width + 1] || 
-        gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + matrix_width - 1]) {
+    if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - matrix_width + 1] &&
+          get_color_canny(angle_matrix[GLOBAL_IDX - matrix_width + 1] + M_PI_2) == 'G' || 
+        gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + matrix_width - 1] &&
+          get_color_canny(angle_matrix[GLOBAL_IDX - matrix_width - 1] + M_PI_2) == 'G') {
       final_value = 0;
     }
-  } else if ((M_PI / 8.0) * 5 <= ANGLE && ANGLE <= (M_PI / 8.0) * 7) {
+  } else if (get_color_canny(ANGLE) == 'R') {
     // Top left gradient direction : Red
-    if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - matrix_width - 1] || 
-        gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + matrix_width + 1]) {
+    if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - matrix_width - 1] &&
+          get_color_canny(angle_matrix[GLOBAL_IDX - matrix_width - 1] + M_PI_2) == 'R' || 
+        gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + matrix_width + 1] &&
+          get_color_canny(angle_matrix[GLOBAL_IDX + matrix_width + 1] + M_PI_2) == 'R') { 
       final_value = 0;
     }
   } else {
     // Horizontal gradient direction : Blue
-    if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - 1] || 
-        gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + 1]) {
+    if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - 1] &&
+          get_color_canny(angle_matrix[GLOBAL_IDX - 1] + M_PI_2) == 'B' || 
+        gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + 1] &&
+          get_color_canny(angle_matrix[GLOBAL_IDX + 1] + M_PI_2) == 'B') {
       final_value = 0;
     }
   }
+
+  // Avoid race condition with gradient_matrix wich is read before and written after
+  __syncthreads(); 
   
   gradient_matrix[GLOBAL_IDX] = final_value; 
 }
@@ -84,8 +95,8 @@ __global__ void histeresis_thresholding_init(unsigned char *gradient_matrix, uns
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
   const int GLOBAL_IDX = globalIdxY*matrix_width + globalIdxX;
 
-  int min_val = 10;
-  int max_val = 25;
+  int min_val = 30;
+  int max_val = 100;
   
   if (gradient_matrix[GLOBAL_IDX] < min_val) {
     ht_matrix[GLOBAL_IDX] = 'D'; // Discarded
@@ -168,3 +179,22 @@ __global__ void histeresis_thresholding_end(unsigned char *gradient_matrix, unsi
   }
 }
 
+__device__ char get_color_canny(float angle) {
+  char color = ' ';
+
+  if (angle < M_PI / 8.0 || (M_PI / 8.0) * 7 < angle) {
+    // Horizontal gradient direction : Yellow
+    color = 'Y';
+  } else if (M_PI / 8.0 < angle && angle < (M_PI / 8.0) * 3) {
+    // Top right gradient direction : Green
+    color = 'G';
+  } else if ((M_PI / 8.0) * 5 < angle && angle < (M_PI / 8.0) * 7) {
+    // Top left gradient direction : Red
+    color = 'R';
+  } else {
+    // Vertical gradient direction : Blue
+    color = 'B';
+  }
+
+  return color;
+}

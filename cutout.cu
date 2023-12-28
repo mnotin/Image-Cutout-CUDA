@@ -6,7 +6,7 @@
 #include "main.h"
 #include "utils.h"
 
-void cutout(unsigned char *h_rgb_image, unsigned char *h_edge_matrix, int matrix_width, int matrix_height, int start_pixel_x, int start_pixel_y) {
+void cutout(unsigned char *h_rgb_image, unsigned char *h_edge_matrix, int matrix_width, int matrix_height, int start_pixel_x, int start_pixel_y, int threshold) {
   int h_done = 0;
   unsigned char h_cutout_matrix[matrix_height][matrix_width];
  
@@ -34,7 +34,7 @@ void cutout(unsigned char *h_rgb_image, unsigned char *h_edge_matrix, int matrix
   
   dim3 threads = dim3(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
   dim3 blocks = dim3(matrix_width/MATRIX_SIZE_PER_BLOCK, matrix_height/MATRIX_SIZE_PER_BLOCK);
-  draw_edges_on_cutout_matrix<<<blocks, threads>>>(d_edge_matrix, d_cutout_matrix, matrix_width, matrix_height, start_pixel_x, start_pixel_y);
+  draw_edges_on_cutout_matrix<<<blocks, threads>>>(d_edge_matrix, d_cutout_matrix, matrix_width, matrix_height, start_pixel_x, start_pixel_y, threshold);
 
   while (h_done == 0) {
     h_done = 1;
@@ -57,14 +57,10 @@ void cutout(unsigned char *h_rgb_image, unsigned char *h_edge_matrix, int matrix
  * First step of the cutout process.
  * Each gradient pixel with a value above the threshold is considered a border.
  **/
-__global__ void draw_edges_on_cutout_matrix(unsigned char *edge_matrix, unsigned char *cutout_matrix, int matrix_width, int matrix_height, int start_pixel_x, int start_pixel_y) {
+__global__ void draw_edges_on_cutout_matrix(unsigned char *edge_matrix, unsigned char *cutout_matrix, int matrix_width, int matrix_height, int start_pixel_x, int start_pixel_y, int threshold) {
   int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
   const int GLOBAL_IDX = globalIdxY * matrix_width + globalIdxX;
-
-  int threshold = 51; // Todo: use only for Sobel-Feldman.
-                      // With Canny, each non-zero pixel should be considered a border
-                      // Idea: threshold should be a parameter
 
   if (globalIdxX < matrix_width && globalIdxY < matrix_height && threshold < edge_matrix[GLOBAL_IDX]) {
     cutout_matrix[GLOBAL_IDX] = 'B'; 

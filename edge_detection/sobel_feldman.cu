@@ -129,17 +129,17 @@ __global__ void edge_color(unsigned char *gradient_matrix, float *angle_matrix, 
   const float ANGLE = angle_matrix[GLOBAL_IDX] + M_PI_2;
   
   if (50 < gradient_matrix[GLOBAL_IDX]) {
-    if (ANGLE < M_PI / 8.0 || (M_PI / 8.0) * 7 < ANGLE) {
+    if (get_color_sobel(ANGLE) == 'Y') {
       // Horizontal gradient direction : Yellow
       output_image[3 * (GLOBAL_IDX)] = 255;
       output_image[3 * (GLOBAL_IDX) + 1] = 255; 
       output_image[3 * (GLOBAL_IDX) + 2] = 0; 
-    } else if (M_PI / 8.0 < ANGLE && ANGLE < (M_PI / 8.0) * 3) {
+    } else if (get_color_sobel(ANGLE) == 'G') {
       // Top right gradient direction : Green
       output_image[3 * (GLOBAL_IDX)] = 0; 
       output_image[3 * (GLOBAL_IDX) + 1] = 255; 
       output_image[3 * (GLOBAL_IDX) + 2] = 0; 
-    } else if ((M_PI / 8.0) * 5 < ANGLE && ANGLE < (M_PI / 8.0) * 7) {
+    } else if (get_color_sobel(ANGLE) == 'R')  {
       // Top left gradient direction : Red
       output_image[3 * (GLOBAL_IDX)] = 255; 
       output_image[3 * (GLOBAL_IDX) + 1] = 0; 
@@ -155,4 +155,24 @@ __global__ void edge_color(unsigned char *gradient_matrix, float *angle_matrix, 
     output_image[3 * (GLOBAL_IDX) + 1] = 0; 
     output_image[3 * (GLOBAL_IDX) + 2] = 0; 
   }
+}
+
+__device__ char get_color_sobel(float angle) {
+  char color = ' ';
+
+  if (angle < M_PI / 8.0 || (M_PI / 8.0) * 7 < angle) {
+    // Horizontal gradient direction : Yellow
+    color = 'Y';
+  } else if (M_PI / 8.0 < angle && angle < (M_PI / 8.0) * 3) {
+    // Top right gradient direction : Green
+    color = 'G';
+  } else if ((M_PI / 8.0) * 5 < angle && angle < (M_PI / 8.0) * 7) {
+    // Top left gradient direction : Red
+    color = 'R';
+  } else {
+    // Vertical gradient direction : Blue
+    color = 'B';
+  }
+
+  return color;
 }

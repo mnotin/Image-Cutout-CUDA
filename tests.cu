@@ -42,7 +42,7 @@ void test_sobel_feldman(char *filename, int start_pixel_x, int start_pixel_y) {
   writePGM("output/canny_output.pgm", gradient_image);
 
   // 4. Last step, cutout the object selected by the user
-  cutout(rgb_image->data, gradient_image->data, gray_image->width, gray_image->height, start_pixel_x, start_pixel_y);
+  cutout(rgb_image->data, gradient_image->data, gray_image->width, gray_image->height, start_pixel_x, start_pixel_y, 0);
   
   writePPM("output/cutout_output.ppm", rgb_image);
 
