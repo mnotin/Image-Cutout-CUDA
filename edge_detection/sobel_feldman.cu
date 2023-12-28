@@ -18,12 +18,16 @@ void sobel_feldman(unsigned char *h_input_matrix, unsigned char *h_gradient_matr
   float sobel_kernel_vertical_kernel[KERNEL_SIZE*KERNEL_SIZE] = { 1,  2,  1,
                                                                   0,  0,  0,
                                                                  -1, -2, -1}; 
+  dim3 threads = dim3(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
+  dim3 blocks = dim3(matrix_width/MATRIX_SIZE_PER_BLOCK, matrix_height/MATRIX_SIZE_PER_BLOCK);
+
   unsigned char *d_input_matrix;
   unsigned char *d_gradient_matrix;
   unsigned char *d_horizontal_gradient;
   unsigned char *d_vertical_gradient;
   float *d_angle_matrix;
   float *d_kernel;
+
   cudaMalloc((void **) &d_input_matrix, matrix_width * matrix_height * sizeof(unsigned char));
   cudaMalloc((void **) &d_gradient_matrix, matrix_width * matrix_height * sizeof(unsigned char));
   cudaMalloc((void **) &d_horizontal_gradient, matrix_width * matrix_height * sizeof(unsigned char));
@@ -32,19 +36,27 @@ void sobel_feldman(unsigned char *h_input_matrix, unsigned char *h_gradient_matr
   cudaMalloc((void **) &d_kernel, KERNEL_SIZE*KERNEL_SIZE * sizeof(float));
 
   cudaMemcpy(d_input_matrix, h_input_matrix, matrix_width * matrix_height * sizeof(unsigned char), cudaMemcpyHostToDevice);
-  dim3 threads = dim3(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
-  dim3 blocks = dim3(matrix_width/MATRIX_SIZE_PER_BLOCK, matrix_height/MATRIX_SIZE_PER_BLOCK);
+
+  // Horizontal gradient
   cudaMemcpy(d_kernel, sobel_kernel_horizontal_kernel, KERNEL_SIZE*KERNEL_SIZE * sizeof(int), cudaMemcpyHostToDevice);
   printf("Nombre de blocs lancés: %d %d\n", blocks.x, blocks.y);
   convolution<<<blocks, threads>>>(d_input_matrix, d_horizontal_gradient, matrix_width, matrix_height, d_kernel, 3);
+  cudaDeviceSynchronize();
+
+  // Vertical gradient
   cudaMemcpy(d_kernel, sobel_kernel_vertical_kernel, KERNEL_SIZE*KERNEL_SIZE * sizeof(int), cudaMemcpyHostToDevice);
   convolution<<<blocks, threads>>>(d_input_matrix, d_vertical_gradient, matrix_width, matrix_height, d_kernel, 3);
   cudaDeviceSynchronize();
+  
+  // Global gradient
   global_gradient<<<blocks, threads>>>(d_gradient_matrix, d_horizontal_gradient, d_vertical_gradient, matrix_width, matrix_height); 
   cudaMemcpy(h_gradient_matrix, d_gradient_matrix, matrix_width * matrix_height * sizeof(unsigned char), cudaMemcpyDeviceToHost);
-
+  cudaDeviceSynchronize();
+ 
+  // Angle of the gradient
   angle<<<blocks, threads>>>(d_horizontal_gradient, d_vertical_gradient, d_angle_matrix, matrix_width, matrix_height);
   cudaMemcpy(h_angle_matrix, d_angle_matrix, matrix_width * matrix_height * sizeof(float), cudaMemcpyDeviceToHost);
+  cudaDeviceSynchronize();
 
   cudaFree(d_input_matrix);
   cudaFree(d_gradient_matrix);
@@ -60,19 +72,85 @@ void sobel_feldman(unsigned char *h_input_matrix, unsigned char *h_gradient_matr
 __global__ void global_gradient(unsigned char *matrix, unsigned char *horizontal_edges, unsigned char *vertical_edges, int matrix_width, int matrix_height) {
   int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
+  const int GLOBAL_IDX = globalIdxY * matrix_width + globalIdxX;
 
-  unsigned char g_x = horizontal_edges[globalIdxY*matrix_width + globalIdxX];
-  unsigned char g_y = vertical_edges[globalIdxY*matrix_width + globalIdxX];
+  unsigned char g_x = horizontal_edges[GLOBAL_IDX];
+  unsigned char g_y = vertical_edges[GLOBAL_IDX];
+  float global_gradient = sqrt((double) g_x * g_x + g_y * g_y);
 
-  matrix[globalIdxY*matrix_width + globalIdxX] = sqrt((double) g_x * g_x + g_y * g_y);
+  matrix[GLOBAL_IDX] = global_gradient <= 255.0 ? (unsigned char) global_gradient : 255;
 }
 
 __global__ void angle(unsigned char *horizontal_edges, unsigned char *vertical_edges, float *angle_matrix, int matrix_width, int matrix_height) {
   int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
 
-  int g_x = horizontal_edges[globalIdxY*matrix_width + globalIdxX] - '0';
-  int g_y = vertical_edges[globalIdxY*matrix_width + globalIdxX] - '0';
+  int g_x = horizontal_edges[globalIdxY*matrix_width + globalIdxX];
+  int g_y = vertical_edges[globalIdxY*matrix_width + globalIdxX];
 
   angle_matrix[globalIdxY*matrix_width + globalIdxX] = atan((float) g_y / g_x);
+}
+
+void generate_edge_color(unsigned char *h_gradient_matrix, float *h_angle_matrix, unsigned char *h_output_image, int matrix_width, int matrix_height) {
+  unsigned char *d_gradient_matrix;
+  float *d_angle_matrix;
+  unsigned char *d_output_image;
+
+  cudaMalloc((void **) &d_gradient_matrix, matrix_width * matrix_height * sizeof(unsigned char));
+  cudaMalloc((void **) &d_angle_matrix, matrix_width * matrix_height * sizeof(float));
+  cudaMalloc((void **) &d_output_image, 3 * matrix_width * matrix_height * sizeof(unsigned char));
+
+  cudaMemcpy(d_gradient_matrix, h_gradient_matrix, matrix_width * matrix_height * sizeof(unsigned char), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_angle_matrix, h_angle_matrix, matrix_width * matrix_height * sizeof(float), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_output_image, h_output_image, 3 * matrix_width * matrix_height * sizeof(unsigned char), cudaMemcpyHostToDevice);
+
+  dim3 threads = dim3(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
+  dim3 blocks = dim3(matrix_width/MATRIX_SIZE_PER_BLOCK, matrix_height/MATRIX_SIZE_PER_BLOCK);
+  printf("Nombre de blocs lancés: %d %d\n", blocks.x, blocks.y);
+  edge_color<<<blocks, threads>>>(d_gradient_matrix, d_angle_matrix, d_output_image, matrix_width, matrix_height);
+
+  cudaMemcpy(h_output_image, d_output_image, 3 * matrix_width * matrix_height * sizeof(unsigned char), cudaMemcpyDeviceToHost);
+
+  cudaFree(d_gradient_matrix);
+  cudaFree(d_angle_matrix);
+  cudaFree(d_output_image);
+}
+
+/**
+ * Give a color to edges depending on their direction.
+ **/
+__global__ void edge_color(unsigned char *gradient_matrix, float *angle_matrix, unsigned char *output_image, int image_width, int image_height) { 
+  int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
+  int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
+  const int GLOBAL_IDX = globalIdxY * image_width + globalIdxX;
+
+  const float ANGLE = abs(angle_matrix[GLOBAL_IDX]);
+  
+  if (50 < gradient_matrix[GLOBAL_IDX]) {
+    if (ANGLE < M_PI / 8.0 || (M_PI / 8.0) * 7 < ANGLE) {
+      // Horizontal gradient direction : Yellow
+      output_image[3 * (GLOBAL_IDX)] = 255;
+      output_image[3 * (GLOBAL_IDX) + 1] = 255; 
+      output_image[3 * (GLOBAL_IDX) + 2] = 0; 
+    } else if (M_PI / 8.0 < ANGLE && ANGLE < (M_PI / 8.0) * 3) {
+      // Top right gradient direction : Green
+      output_image[3 * (GLOBAL_IDX)] = 0; 
+      output_image[3 * (GLOBAL_IDX) + 1] = 255; 
+      output_image[3 * (GLOBAL_IDX) + 2] = 0; 
+    } else if ((M_PI / 8.0) * 5 < ANGLE && ANGLE < (M_PI / 8.0) * 7) {
+      // Top left gradient direction : Red
+      output_image[3 * (GLOBAL_IDX)] = 255; 
+      output_image[3 * (GLOBAL_IDX) + 1] = 0; 
+      output_image[3 * (GLOBAL_IDX) + 2] = 0; 
+    } else {
+      // Vertical gradient direction : Blue
+      output_image[3 * (GLOBAL_IDX)] = 0; 
+      output_image[3 * (GLOBAL_IDX) + 1] = 0; 
+      output_image[3 * (GLOBAL_IDX) + 2] = 255; 
+    }
+  } else {
+    output_image[3 * (GLOBAL_IDX)] = 0; 
+    output_image[3 * (GLOBAL_IDX) + 1] = 0; 
+    output_image[3 * (GLOBAL_IDX) + 2] = 0; 
+  }
 }

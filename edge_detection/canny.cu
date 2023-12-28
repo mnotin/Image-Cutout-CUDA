@@ -57,14 +57,14 @@ __global__ void non_maximum_suppression(unsigned char *gradient_matrix, float *a
     }
   } else if (M_PI / 8.0 < ANGLE && ANGLE < (M_PI / 8.0) * 3) {
     // Top right gradient direction
-    if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - matrix_width + 1] || 
-        gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + matrix_width - 1]) {
+    if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - matrix_width] || 
+        gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + matrix_width]) {
       final_value = 0;
     }
   } else if ((M_PI / 8.0) * 5 < ANGLE && ANGLE < (M_PI / 8.0) * 7) {
     // Top left gradient direction
-    if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - matrix_width - 1] || 
-        gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + matrix_width + 1]) {
+    if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - 1] || 
+        gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + 1]) {
       final_value = 0;
     }
   } else {
@@ -166,3 +166,4 @@ __global__ void histeresis_thresholding_end(unsigned char *gradient_matrix, unsi
     gradient_matrix[GLOBAL_IDX] = 0;
   }
 }
+

@@ -58,7 +58,7 @@ __global__ void convolution(unsigned char *input_matrix, unsigned char *output_m
     }
   }  
   
-  output_matrix[current_matrix_index] = abs(convolution_result);
+  output_matrix[current_matrix_index] = abs(convolution_result) <= 255.0 ? (unsigned char) abs(convolution_result) : 255;
 }
 
 int main(int argc, char **argv) {

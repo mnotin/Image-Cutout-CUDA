@@ -53,23 +53,32 @@ void cutout(unsigned char *h_rgb_image, unsigned char *h_edge_matrix, int matrix
   cudaFree(d_done);
 }
 
+/**
+ * First step of the cutout process.
+ * Each gradient pixel with a value above the threshold is considered a border.
+ **/
 __global__ void draw_edges_on_cutout_matrix(unsigned char *edge_matrix, unsigned char *cutout_matrix, int matrix_width, int matrix_height, int start_pixel_x, int start_pixel_y) {
   int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
+  const int GLOBAL_IDX = globalIdxY * matrix_width + globalIdxX;
 
-  int threshold = 51;
+  int threshold = 51; // Todo: use only for Sobel-Feldman.
+                      // With Canny, each non-zero pixel should be considered a border
+                      // Idea: threshold should be a parameter
 
-  if (globalIdxX < matrix_width && globalIdxY < matrix_height && threshold < edge_matrix[globalIdxY*matrix_width + globalIdxX]) {
-    cutout_matrix[globalIdxY*matrix_width + globalIdxX] = 'B'; 
+  if (globalIdxX < matrix_width && globalIdxY < matrix_height && threshold < edge_matrix[GLOBAL_IDX]) {
+    cutout_matrix[GLOBAL_IDX] = 'B'; 
   }
   
-  __syncthreads();
-
   if (start_pixel_x == globalIdxX && start_pixel_y == globalIdxY) {
     cutout_matrix[start_pixel_y*matrix_width + start_pixel_x] = 'A';
   }
 }
 
+/**
+ * Main part of the cutout process.
+ * Loops over a cutout matrix from the start pixel to fill the shape it is in.
+ **/
 __global__ void cutout_algorithm(unsigned char *cutout_matrix, int matrix_width, int matrix_height, int *done) {
   int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
@@ -109,9 +118,7 @@ __global__ void cutout_algorithm(unsigned char *cutout_matrix, int matrix_width,
     
     cutout_matrix[globalIdxY*matrix_width + globalIdxX] = 'M';
   }
-
-  __syncthreads();
-   
+ 
   if (localIdxX == 0 && localIdxY == 0 && shared_done == 0) {
     *done = 0;
   }
@@ -120,14 +127,16 @@ __global__ void cutout_algorithm(unsigned char *cutout_matrix, int matrix_width,
 __global__ void apply_cutout(unsigned char *cutout_matrix, unsigned char *output_image, int image_width, int image_height, int start_pixel_x, int start_pixel_y) { 
   int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
+  const int GLOBAL_IDX = globalIdxY * image_width + globalIdxX;
  
   if (globalIdxX == start_pixel_x && globalIdxY == start_pixel_y) {
-    output_image[3 * (globalIdxY*image_width + globalIdxX)] = 255;
-    output_image[3 * (globalIdxY*image_width + globalIdxX) + 1] = 0; 
-    output_image[3 * (globalIdxY*image_width + globalIdxX) + 2] = 0; 
+    output_image[3 * (GLOBAL_IDX)] = 255;
+    output_image[3 * (GLOBAL_IDX) + 1] = 0; 
+    output_image[3 * (GLOBAL_IDX) + 2] = 0; 
   } else if (cutout_matrix[globalIdxY*image_width + globalIdxX] != 'M') {
-    output_image[3 * (globalIdxY*image_width + globalIdxX)] = 0; 
-    output_image[3 * (globalIdxY*image_width + globalIdxX) + 1] = 0; 
-    output_image[3 * (globalIdxY*image_width + globalIdxX) + 2] = 0; 
+    output_image[3 * (GLOBAL_IDX)] = 0; 
+    output_image[3 * (GLOBAL_IDX) + 1] = 0; 
+    output_image[3 * (GLOBAL_IDX) + 2] = 0; 
   }
 }
+
