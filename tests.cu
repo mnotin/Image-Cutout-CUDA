@@ -33,18 +33,18 @@ void test_sobel_feldman(char *filename, int start_pixel_x, int start_pixel_y) {
 
   // 3. Third step, apply the Sobel-Feldman operator to detect edges of shapes
   sobel_feldman(gray_image->data, gradient_image->data, angle_image, gray_image->width, gray_image->height);
-  writePGM("sf_gradient_output.pgm", gradient_image);
+  writePGM("output/sf_gradient_output.pgm", gradient_image);
 
   generate_edge_color(gradient_image->data, angle_image, edge_color_image->data, edge_color_image->width, edge_color_image->height);
-  writePPM("edge_color_output.ppm", edge_color_image);
+  writePPM("output/edge_color_output.ppm", edge_color_image);
 
   canny(gradient_image->data, angle_image, gray_image->width, gray_image->height); 
-  writePGM("canny_output.pgm", gradient_image);
+  writePGM("output/canny_output.pgm", gradient_image);
 
   // 4. Last step, cutout the object selected by the user
   cutout(rgb_image->data, gradient_image->data, gray_image->width, gray_image->height, start_pixel_x, start_pixel_y);
   
-  writePPM("cutout_output.ppm", rgb_image);
+  writePPM("output/cutout_output.ppm", rgb_image);
 
   destroyPPM(rgb_image);
   destroyPGM(gray_image);  
