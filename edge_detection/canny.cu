@@ -95,8 +95,8 @@ __global__ void histeresis_thresholding_init(unsigned char *gradient_matrix, uns
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
   const int GLOBAL_IDX = globalIdxY*matrix_width + globalIdxX;
 
-  int min_val = 30;
-  int max_val = 100;
+  int min_val = 20;
+  int max_val = 60;
   
   if (gradient_matrix[GLOBAL_IDX] < min_val) {
     ht_matrix[GLOBAL_IDX] = 'D'; // Discarded

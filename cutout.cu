@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <cuda_runtime.h>
+#include <unistd.h>
 
 #include "cutout.h"
 #include "main.h"
@@ -9,7 +10,7 @@
 void cutout(unsigned char *h_rgb_image, unsigned char *h_edge_matrix, int matrix_width, int matrix_height, int start_pixel_x, int start_pixel_y, int threshold) {
   int h_done = 0;
   unsigned char h_cutout_matrix[matrix_height][matrix_width];
- 
+  
   for (int i = 0; i < matrix_height; i++) {
     for (int j = 0; j < matrix_width; j++) {
       h_cutout_matrix[i][j] = 'D';
@@ -80,6 +81,7 @@ __global__ void cutout_algorithm(unsigned char *cutout_matrix, int matrix_width,
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
   int localIdxX = threadIdx.x;
   int localIdxY = threadIdx.y;
+  const int GLOBAL_IDX = globalIdxY*matrix_width + globalIdxX;
 
   __shared__ int shared_done;
 
@@ -90,30 +92,33 @@ __global__ void cutout_algorithm(unsigned char *cutout_matrix, int matrix_width,
   __syncthreads();
 
   // Process
-  if (cutout_matrix[globalIdxY*matrix_width + globalIdxX] == 'A') {
+  if (cutout_matrix[GLOBAL_IDX] == 'A') {
     // Active pixel
-    if (cutout_matrix[globalIdxY*matrix_width + globalIdxX-1] == 'D') {
-      cutout_matrix[globalIdxY*matrix_width + globalIdxX-1] = 'A';
+    if (0 < globalIdxX && cutout_matrix[GLOBAL_IDX-1] == 'D') {
+      cutout_matrix[GLOBAL_IDX-1] = 'A';
       shared_done = 0;
     }
     
-    if (cutout_matrix[globalIdxY*matrix_width + globalIdxX+1] == 'D') {
-      cutout_matrix[globalIdxY*matrix_width + globalIdxX+1] = 'A';
+    if (globalIdxX < matrix_width-1 && cutout_matrix[GLOBAL_IDX+1] == 'D') {
+      cutout_matrix[GLOBAL_IDX+1] = 'A';
       shared_done = 0;
     }
     
-    if (cutout_matrix[(globalIdxY-1)*matrix_width + globalIdxX] == 'D') {
-      cutout_matrix[(globalIdxY-1)*matrix_width + globalIdxX] = 'A';
+    if (0 < globalIdxY && cutout_matrix[GLOBAL_IDX - matrix_width] == 'D') {
+      cutout_matrix[GLOBAL_IDX - matrix_width] = 'A';
       shared_done = 0;
     }
     
-    if (cutout_matrix[(globalIdxY+1)*matrix_width + globalIdxX] == 'D') {
-      cutout_matrix[(globalIdxY+1)*matrix_width + globalIdxX] = 'A';
+    if (globalIdxY < matrix_height-1 && cutout_matrix[GLOBAL_IDX + matrix_width] == 'D') {
+      cutout_matrix[GLOBAL_IDX + matrix_width] = 'A';
       shared_done = 0;
     }
     
-    cutout_matrix[globalIdxY*matrix_width + globalIdxX] = 'M';
+    cutout_matrix[GLOBAL_IDX] = 'M';
   }
+
+  // The first local thread has to wait for all the threads of the bloc to finish
+  __syncthreads();
  
   if (localIdxX == 0 && localIdxY == 0 && shared_done == 0) {
     *done = 0;
