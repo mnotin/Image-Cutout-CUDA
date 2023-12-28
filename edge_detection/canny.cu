@@ -19,7 +19,7 @@ void canny(unsigned char *h_gradient_matrix, float *h_angle_matrix, int matrix_w
   cudaMalloc((void **) &d_done, sizeof(int));
   
   cudaMemcpy(d_gradient_matrix, h_gradient_matrix, matrix_width * matrix_height * sizeof(unsigned char), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_angle_matrix, h_angle_matrix, matrix_width * matrix_height * sizeof(unsigned char), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_angle_matrix, h_angle_matrix, matrix_width * matrix_height * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(d_done, &h_done, sizeof(int), cudaMemcpyHostToDevice);
 
   dim3 threads = dim3(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
@@ -50,19 +50,19 @@ __global__ void non_maximum_suppression(unsigned char *gradient_matrix, float *a
   const float ANGLE = angle_matrix[GLOBAL_IDX] + M_PI_2;
   unsigned char final_value = gradient_matrix[GLOBAL_IDX];
   
-  if (ANGLE < M_PI / 8.0 || (M_PI / 8.0) * 7 < ANGLE) {
+  if (ANGLE <= M_PI / 8.0 || (M_PI / 8.0) * 7 <= ANGLE) {
     // Vertical gradient direction : Yellow
     if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - matrix_width] || 
         gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + matrix_width]) {
       final_value = 0;
     }
-  } else if (M_PI / 8.0 < ANGLE && ANGLE < (M_PI / 8.0) * 3) {
+  } else if (M_PI / 8.0 <= ANGLE && ANGLE <= (M_PI / 8.0) * 3) {
     // Top right gradient direction : Green
     if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - matrix_width + 1] || 
         gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + matrix_width - 1]) {
       final_value = 0;
     }
-  } else if ((M_PI / 8.0) * 5 < ANGLE && ANGLE < (M_PI / 8.0) * 7) {
+  } else if ((M_PI / 8.0) * 5 <= ANGLE && ANGLE <= (M_PI / 8.0) * 7) {
     // Top left gradient direction : Red
     if (gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX - matrix_width - 1] || 
         gradient_matrix[GLOBAL_IDX] < gradient_matrix[GLOBAL_IDX + matrix_width + 1]) {
