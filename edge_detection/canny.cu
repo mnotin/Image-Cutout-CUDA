@@ -176,6 +176,8 @@ __global__ void histeresis_thresholding_end(unsigned char *gradient_matrix, unsi
   if (ht_matrix[GLOBAL_IDX] == 'D') {
     // Final step, we set every discarded pixel to 0 in the gradient matrix
     gradient_matrix[GLOBAL_IDX] = 0;
+  } else {
+    gradient_matrix[GLOBAL_IDX] = 255;
   }
 }
 
