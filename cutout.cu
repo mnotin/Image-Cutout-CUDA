@@ -134,7 +134,7 @@ __global__ void apply_cutout(unsigned char *cutout_matrix, unsigned char *output
     output_image[3 * (GLOBAL_IDX)] = 255;
     output_image[3 * (GLOBAL_IDX) + 1] = 0; 
     output_image[3 * (GLOBAL_IDX) + 2] = 0; 
-  } else if (cutout_matrix[globalIdxY*image_width + globalIdxX] != 'M') {
+  } else if (cutout_matrix[globalIdxY*image_width + globalIdxX] == 'M') {
     output_image[3 * (GLOBAL_IDX)] = 0; 
     output_image[3 * (GLOBAL_IDX) + 1] = 0; 
     output_image[3 * (GLOBAL_IDX) + 2] = 0; 
