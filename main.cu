@@ -36,38 +36,37 @@ __global__ void convolution(unsigned char *input_matrix, int *output_matrix, int
     // Fill the edges
     for (int i = 0; i < MATRIX_SIZE_PER_BLOCK+2; i++) {
       // First line
-      if (0 < globalIdxY) {
-        shared_matrix[i] = input_matrix[(globalIdxY-1)*matrix_width + globalIdxX + i - 1];
-      } else {
-        shared_matrix[i] = input_matrix[(globalIdxY)*matrix_width + globalIdxX + i - 1];
+      int first_line_offset = -1;
+      if (0 == globalIdxY) {
+        first_line_offset = 0;
       }
+      shared_matrix[i] = input_matrix[(globalIdxY+first_line_offset)*matrix_width + globalIdxX + i - 1];
       
       // Last line
-      if (globalIdxY+MATRIX_SIZE_PER_BLOCK < matrix_height) {
-        shared_matrix[(MATRIX_SIZE_PER_BLOCK+2)*(MATRIX_SIZE_PER_BLOCK+1)+i] =
-          input_matrix[(globalIdxY+MATRIX_SIZE_PER_BLOCK)*matrix_width + globalIdxX + i - 1];
-      } else {
-        shared_matrix[(MATRIX_SIZE_PER_BLOCK+2)*(MATRIX_SIZE_PER_BLOCK+1)+i] =
-          input_matrix[(globalIdxY+MATRIX_SIZE_PER_BLOCK-1)*matrix_width + globalIdxX + i - 1];
+      int last_line_offset = 0;
+      if (globalIdxY+MATRIX_SIZE_PER_BLOCK == matrix_height) {
+        last_line_offset = -1;
       }
+      shared_matrix[(MATRIX_SIZE_PER_BLOCK+2)*(MATRIX_SIZE_PER_BLOCK+1)+i] =
+        input_matrix[(globalIdxY+MATRIX_SIZE_PER_BLOCK+last_line_offset)*matrix_width + globalIdxX + i - 1];
     }
 
     for (int i = 0; i < MATRIX_SIZE_PER_BLOCK; i++) {
       // Left side
-      if (0 < globalIdxX) {
-        shared_matrix[MATRIX_SIZE_PER_BLOCK+2 + i*(MATRIX_SIZE_PER_BLOCK+2)] = input_matrix[(globalIdxY+i)*matrix_width + globalIdxX - 1];
-      } else {
-        shared_matrix[MATRIX_SIZE_PER_BLOCK+2 + i*(MATRIX_SIZE_PER_BLOCK+2)] = input_matrix[(globalIdxY+i)*matrix_width + globalIdxX];
+      int left_side_offset = -1;
+      if (0 == globalIdxX) {
+        left_side_offset = 0;
       }
+      shared_matrix[MATRIX_SIZE_PER_BLOCK+2 + i*(MATRIX_SIZE_PER_BLOCK+2)] = 
+        input_matrix[(globalIdxY+i)*matrix_width + globalIdxX + left_side_offset];
 
       // Right side
-      if (globalIdxX+MATRIX_SIZE_PER_BLOCK < matrix_width) {
-        shared_matrix[MATRIX_SIZE_PER_BLOCK+2 + (i+1)*(MATRIX_SIZE_PER_BLOCK+2) - 1] =
-          input_matrix[(globalIdxY+i)*matrix_width + globalIdxX+MATRIX_SIZE_PER_BLOCK];
-      } else {
-        shared_matrix[MATRIX_SIZE_PER_BLOCK+2 + (i+1)*(MATRIX_SIZE_PER_BLOCK+2) - 1] =
-          input_matrix[(globalIdxY+i)*matrix_width + globalIdxX+MATRIX_SIZE_PER_BLOCK-1];
+      int right_side_offset = 0;
+      if (globalIdxX+MATRIX_SIZE_PER_BLOCK == matrix_width) {
+        right_side_offset = -1;
       }
+      shared_matrix[MATRIX_SIZE_PER_BLOCK+2 + (i+1)*(MATRIX_SIZE_PER_BLOCK+2) - 1] =
+        input_matrix[(globalIdxY+i)*matrix_width + globalIdxX+MATRIX_SIZE_PER_BLOCK + right_side_offset];
     }
   }
   __syncthreads();
