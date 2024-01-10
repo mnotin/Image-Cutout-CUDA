@@ -5,7 +5,7 @@
 #include "../main.h"
 #include "canny.h"
 
-void canny(unsigned char *h_gradient_matrix, float *h_angle_matrix, int matrix_width, int matrix_height) {
+void canny(unsigned char *h_gradient_matrix, float *h_angle_matrix, int matrix_width, int matrix_height, int canny_min, int canny_max) {
   int h_done = 0;
 
   unsigned char *d_gradient_matrix;
@@ -25,7 +25,7 @@ void canny(unsigned char *h_gradient_matrix, float *h_angle_matrix, int matrix_w
   dim3 threads = dim3(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
   dim3 blocks = dim3(matrix_width/MATRIX_SIZE_PER_BLOCK, matrix_height/MATRIX_SIZE_PER_BLOCK);
   non_maximum_suppression<<<blocks, threads>>>(d_gradient_matrix, d_angle_matrix, matrix_width, matrix_height);
-  histeresis_thresholding_init<<<blocks, threads>>>(d_gradient_matrix, d_ht_matrix, matrix_width, matrix_height);
+  histeresis_thresholding_init<<<blocks, threads>>>(d_gradient_matrix, d_ht_matrix, matrix_width, matrix_height, canny_min, canny_max);
   while (h_done == 0) {
     h_done = 1;
     cudaMemcpy(d_done, &h_done, sizeof(int), cudaMemcpyHostToDevice);
@@ -90,17 +90,14 @@ __global__ void non_maximum_suppression(unsigned char *gradient_matrix, float *a
   gradient_matrix[GLOBAL_IDX] = final_value; 
 }
 
-__global__ void histeresis_thresholding_init(unsigned char *gradient_matrix, unsigned char *ht_matrix, int matrix_width, int matrix_height) {
+__global__ void histeresis_thresholding_init(unsigned char *gradient_matrix, unsigned char *ht_matrix, int matrix_width, int matrix_height, int canny_min, int canny_max) {
   int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
   const int GLOBAL_IDX = globalIdxY*matrix_width + globalIdxX;
 
-  int min_val = 20;
-  int max_val = 60;
-  
-  if (gradient_matrix[GLOBAL_IDX] < min_val) {
+  if (gradient_matrix[GLOBAL_IDX] < canny_min) {
     ht_matrix[GLOBAL_IDX] = 'D'; // Discarded
-  } else if (max_val < gradient_matrix[GLOBAL_IDX]) {
+  } else if (canny_max < gradient_matrix[GLOBAL_IDX]) {
     ht_matrix[GLOBAL_IDX] = 'M'; // Marked
   } else {
     ht_matrix[GLOBAL_IDX] = 'P'; // Pending

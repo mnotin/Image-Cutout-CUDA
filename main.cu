@@ -91,17 +91,20 @@ __global__ void convolution(unsigned char *input_matrix, int *output_matrix, int
 }
 
 int main(int argc, char **argv) {
-  if (argc != 4) {
+  if (argc != 7) {
     printf("Please provide the name of the file that has to be processed.\n");
-    printf("Usage: ./binary filename.ppm start_pixel_x start_pixel_y\n");
+    printf("Usage: ./binary filename.ppm start_pixel_x start_pixel_y canny_min canny_max canny_sample_offset\n");
     exit(EXIT_FAILURE);
   }
 
   char *filename = argv[1];
   int start_pixel_x = atoi(argv[2]);
   int start_pixel_y = atoi(argv[3]);
+  int canny_min_val = atoi(argv[4]);
+  int canny_max_val = atoi(argv[5]);
+  int canny_sample_offset = atoi(argv[6]);
 
-  test_sobel_feldman(filename, start_pixel_x, start_pixel_y);
+  test_canny(filename, start_pixel_x, start_pixel_y, canny_min_val, canny_max_val, canny_sample_offset);
 
   printf(" === \n");
   cudaDeviceSynchronize();
