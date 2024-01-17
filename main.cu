@@ -6,103 +6,81 @@
 #include "utils.h"
 #include "tests.h"
 
-/**
- * Applies discrete convolution over a matrix using a given kernel.
- * This kernel should be called using appropriate number of grids, blocks and threads to match the resolution of the image.
- **/
-__global__ void convolution(unsigned char *input_matrix, int *output_matrix, int matrix_width, int matrix_height, float *kernel, int kernel_size) {
-  int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
-  int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
-  int localIdxX = threadIdx.x;
-  int localIdxY = threadIdx.y;
-  
-  int current_matrix_index = globalIdxY*matrix_width + globalIdxX;
-  int current_shared_matrix_index = MATRIX_SIZE_PER_BLOCK+2+1+ localIdxY*(MATRIX_SIZE_PER_BLOCK+2) + localIdxX;
-
-  __shared__ unsigned char shared_matrix[(MATRIX_SIZE_PER_BLOCK+2)*(MATRIX_SIZE_PER_BLOCK+2)];
-
-  /*
-   * x x x x x x MATRIX_SIZE_PER_BLOCK + 2
-   * x o o o o x
-   * x o o o o x
-   * x o o o o x
-   * x o o o o x
-   * x x x x x x
-   */
-  shared_matrix[current_shared_matrix_index] = input_matrix[current_matrix_index];
-
-  // Handle the borders of each block
-  if (localIdxX == 0 && localIdxY == 0) {
-    // Fill the edges
-    for (int i = 0; i < MATRIX_SIZE_PER_BLOCK+2; i++) {
-      // First line
-      int first_line_offset = -1;
-      if (0 == globalIdxY) {
-        first_line_offset = 0;
-      }
-      shared_matrix[i] = input_matrix[(globalIdxY+first_line_offset)*matrix_width + globalIdxX + i - 1];
-      
-      // Last line
-      int last_line_offset = 0;
-      if (globalIdxY+MATRIX_SIZE_PER_BLOCK == matrix_height) {
-        last_line_offset = -1;
-      }
-      shared_matrix[(MATRIX_SIZE_PER_BLOCK+2)*(MATRIX_SIZE_PER_BLOCK+1)+i] =
-        input_matrix[(globalIdxY+MATRIX_SIZE_PER_BLOCK+last_line_offset)*matrix_width + globalIdxX + i - 1];
-    }
-
-    for (int i = 0; i < MATRIX_SIZE_PER_BLOCK; i++) {
-      // Left side
-      int left_side_offset = -1;
-      if (0 == globalIdxX) {
-        left_side_offset = 0;
-      }
-      shared_matrix[MATRIX_SIZE_PER_BLOCK+2 + i*(MATRIX_SIZE_PER_BLOCK+2)] = 
-        input_matrix[(globalIdxY+i)*matrix_width + globalIdxX + left_side_offset];
-
-      // Right side
-      int right_side_offset = 0;
-      if (globalIdxX+MATRIX_SIZE_PER_BLOCK == matrix_width) {
-        right_side_offset = -1;
-      }
-      shared_matrix[MATRIX_SIZE_PER_BLOCK+2 + (i+1)*(MATRIX_SIZE_PER_BLOCK+2) - 1] =
-        input_matrix[(globalIdxY+i)*matrix_width + globalIdxX+MATRIX_SIZE_PER_BLOCK + right_side_offset];
-    }
-  }
-  __syncthreads();
-
-  int convolution_result = 0;
-
-  for (int i = 0; i < kernel_size; i++) {
-    for (int j = 0; j < kernel_size; j++) {
-      int vertical_offset = ((localIdxY + i) - (int)floor(kernel_size/2.0));
-      int horizontal_offset = (localIdxX + j) - (int)floor(kernel_size/2.0);
-      int tmp_index = vertical_offset*(MATRIX_SIZE_PER_BLOCK+2) + horizontal_offset;
-      
-      convolution_result += shared_matrix[MATRIX_SIZE_PER_BLOCK+2+1 + tmp_index] * kernel[i*kernel_size + j];
-    }
-  }
-
-  if (255 < abs(convolution_result)) {
-    convolution_result = convolution_result < 0 ? -255 : 255;
-  }
-  
-  output_matrix[current_matrix_index] = convolution_result;
-}
 
 int main(int argc, char **argv) {
-  if (argc != 7) {
-    printf("Please provide the name of the file that has to be processed.\n");
-    printf("Usage: ./binary filename.ppm start_pixel_x start_pixel_y canny_min canny_max canny_sample_offset\n");
-    exit(EXIT_FAILURE);
-  }
+  char *filename;
+  int start_pixel_x = 0;
+  int start_pixel_y = 0;
+  char edge_detection = 'c';
+  char processing_unit = 'd';
+  int canny_min_val = 50;
+  int canny_max_val = 100;
+  int canny_sample_offset = 0; // Zero: no sample; non-zero value: sample
 
-  char *filename = argv[1];
-  int start_pixel_x = atoi(argv[2]);
-  int start_pixel_y = atoi(argv[3]);
-  int canny_min_val = atoi(argv[4]);
-  int canny_max_val = atoi(argv[5]);
-  int canny_sample_offset = atoi(argv[6]);
+  if (argc == 2 && strcmp(argv[1], "--help") == 0) {
+    print_help();
+
+    return 0;
+  } else {
+    int i;
+    int bad_usage = 0;
+    int filename_found = 0;
+
+    for (i = 1; i < argc && !bad_usage; i++) {
+      if (strcmp(argv[i], "--start-pixel") == 0) {
+        start_pixel_x = atoi(argv[i+1]);
+        start_pixel_y = atoi(argv[i+2]);
+        i += 2;
+      } else if (strcmp(argv[i], "--edge-detection") == 0) {
+        if (strcmp(argv[i+1], "sobel") == 0) {
+          edge_detection = 's';
+          i += 1;
+        } else if (strcmp(argv[i+1], "canny") == 0) {
+          edge_detection = 'c';
+          i += 1;
+        } else {
+          bad_usage = 1;
+        }
+      } else if (strcmp(argv[i], "--canny-thresholds") == 0) {
+        canny_min_val = atoi(argv[i+1]);
+        canny_max_val = atoi(argv[i+2]);
+        i += 2;
+
+        if (canny_min_val < 0 || 255 < canny_max_val || canny_max_val < canny_min_val) {
+          bad_usage = 1;
+        }
+      } else if (strcmp(argv[i], "--processing-unit") == 0) {
+        if (strcmp(argv[i+1], "host") == 0) {
+          processing_unit = 'h';
+          i += 1;
+        } else if (strcmp(argv[i+1], "device") == 0) {
+          processing_unit = 'd';
+          i += 1;
+        } else {
+          bad_usage = 1;
+        }
+      } else if (strcmp(argv[i], "--canny-sampling-offset") == 0) {
+        canny_sample_offset = atoi(argv[i+1]);
+        i += 1;
+      } else {
+        // This option did not match any possible one
+        if (i != argc-1) {
+          // Not the filename
+          bad_usage = 1;
+        } else {
+          filename_found = 1;
+        }
+      }
+    }
+  
+    if (argc == 1 || i == argc && filename_found == 0 || bad_usage) {
+      // Filename is missing or bad usage
+      print_bad_usage();
+      exit(EXIT_FAILURE);
+    } else {
+      filename = argv[argc-1];
+    }
+  }
 
   test_canny(filename, start_pixel_x, start_pixel_y, canny_min_val, canny_max_val, canny_sample_offset);
 
@@ -114,3 +92,24 @@ int main(int argc, char **argv) {
   return 0;
 }
 
+void print_help() {
+  printf("Usage: ./main [OPTION] file\n");
+  printf("\t--start-pixel <x> <y>\t\t\tPixel coordinates where the cutout algorithm should start. (default: 0 0)\n");
+
+  printf("\t--edge-detection <method>\t\tSpecify the method to use to process edge detection. (default: canny)\n");
+  printf("\t\t\t\t\t\tPermissible methods are 'sobel' and 'canny'.\n");
+  printf("\t--canny-thresholds <min> <max>\t\tSpecify the thresholds that have to be used by the Canny edge detector (default: 50 100)\n");
+  printf("\t\t\t\t\t\tPermissible values are integer between 0 and 255.\n");
+  printf("\t--processing-unit <processing-unit>\tSpecify where the cutout process has to be executed. (default: device)\n");
+  printf("\t\t\t\t\t\tPermissible processing units are 'host' (CPU) and 'device' (GPU).\n");
+  printf("\t--canny-sampling-offset <offset>\tSpecify that canny should produce multiple outputs, " \
+  "starting from the minimum value threshold up to the maximum value\n");
+  printf("\t\t\t\t\t\twith an offset of 'offset' between each sample.\n");
+
+  printf("\t--help\t\t\t\t\tDisplay this help and exit.\n");
+}
+
+void print_bad_usage() {
+  printf("Usage: ./main [OPTION] file\n");
+  printf("Try './main --help' for more information.\n");
+}

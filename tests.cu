@@ -1,7 +1,6 @@
 #include <stdio.h>
 
 #include "tests.h"
-#include "main.h"
 #include "utils.h"
 #include "img.h"
 #include "cutout.h"
@@ -79,32 +78,45 @@ void test_canny(char *filename, int start_pixel_x, int start_pixel_y, int canny_
   generate_edge_color(gradient_image->data, angle_image, edge_color_image->data, edge_color_image->width, edge_color_image->height);
   writePPM("output/edge_color_output.ppm", edge_color_image);
 
-  GrayImage *buffer = createPGM(gradient_image->width, gradient_image->height);
+  GrayImage *buffer_gray = createPGM(gradient_image->width, gradient_image->height);
+  RGBImage *buffer_rgb = createPPM(gradient_image->width, gradient_image->height);
   int file_index = 0;
-  for (int i = canny_min; i <= canny_max; i += canny_sample_offset) {
-    memcpy(buffer->data, gradient_image->data, sizeof(unsigned char) * gradient_image->width * gradient_image->height);
-    canny(buffer->data, angle_image, buffer->width, buffer->height, i, canny_max);
+  for (int i = canny_min; i <= canny_max && canny_sample_offset; i += canny_sample_offset) {
+    memcpy(buffer_gray->data, gradient_image->data, sizeof(unsigned char) * gradient_image->width * gradient_image->height);
+    canny(buffer_gray->data, angle_image, buffer_gray->width, buffer_gray->height, i, canny_max);
 
     // Create the name of the output file
-    const char *prefix = "output/canny_output";
-    char number[4] = "000";
-    sprintf(number, "%d", file_index);
-    char filename[strlen(prefix) + 3 + 4 + 1]; // prefix + number + .ppm + \0
-    bzero(filename, strlen(prefix) + 3 + 4 + 1);
-    strcpy(filename, prefix);
-    strcpy(filename + strlen(prefix), number);
-    strcpy(filename + strlen(filename), ".ppm");
-    printf("%s\n", filename);
+    const char *prefix_gray = "output/canny_output";
+    char number_gray[4] = "000";
+    sprintf(number_gray, "%d", file_index);
+    char filename_gray[strlen(prefix_gray) + 3 + 4 + 1]; // prefix + number + .ppm + \0
+    bzero(filename_gray, strlen(prefix_gray) + 3 + 4 + 1);
+    strcpy(filename_gray, prefix_gray);
+    strcpy(filename_gray + strlen(prefix_gray), number_gray);
+    strcpy(filename_gray + strlen(filename_gray), ".ppm");
+
+    //printf("%s\n", filename_gray);
+    //writePGM(filename, buffer);
+    
+    // 4. Last step, cutout the object selected by the user
+    memcpy(buffer_rgb->data, rgb_image->data, sizeof(unsigned char) * gradient_image->width * gradient_image->height * 3);
+    cutout(buffer_rgb->data, buffer_gray->data, gray_image->width, gray_image->height, start_pixel_x, start_pixel_y, 0);
   
-    writePGM(filename, buffer);
+    const char *prefix_rgb = "output/cutout_output";
+    char number_rgb[4] = "000";
+    sprintf(number_rgb, "%d", file_index);
+    char filename_rgb[strlen(prefix_rgb) + 3 + 4 + 1]; // prefix + number + .ppm + \0
+    bzero(filename_rgb, strlen(prefix_rgb) + 3 + 4 + 1);
+    strcpy(filename_rgb, prefix_rgb);
+    strcpy(filename_rgb + strlen(prefix_rgb), number_rgb);
+    strcpy(filename_rgb + strlen(filename_rgb), ".ppm");
+    printf("%s\n", filename_rgb);
+    writePPM(filename_rgb, buffer_rgb);
+    
     file_index += 1;
   }
-  free(buffer);
-
-  // 4. Last step, cutout the object selected by the user
-  cutout(rgb_image->data, gradient_image->data, gray_image->width, gray_image->height, start_pixel_x, start_pixel_y, 0);
-  
-  writePPM("output/cutout_output.ppm", rgb_image);
+  free(buffer_gray);
+  free(buffer_rgb);
 
   destroyPPM(rgb_image);
   destroyPGM(gray_image);  

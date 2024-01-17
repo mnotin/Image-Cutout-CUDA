@@ -3,6 +3,7 @@
 
 #define MATRIX_SIZE_PER_BLOCK 32
 
-__global__ void convolution(unsigned char *input_matrix, int *output_matrix, int matrix_width, int matrix_height, float *kernel, int kernel_size);
+void print_help();
+void print_bad_usage();
 
 #endif // MAIN_H
