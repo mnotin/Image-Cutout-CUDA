@@ -1,9 +1,11 @@
-#include <stdio.h>
+#include <iostream>
 
 #include "tests.h"
 #include "utils.h"
-#include "img.h"
 #include "cutout.h"
+
+#include "img.h"
+#include <opencv2/imgcodecs.hpp>
 
 #include "edge_detection/sobel_feldman.h"
 #include "edge_detection/canny.h"
@@ -12,11 +14,11 @@ void test_sobel_feldman(char *filename, int start_pixel_x, int start_pixel_y) {
   RGBImage *rgb_image = readPPM(filename);
   GrayImage *gray_image = createPGM(rgb_image->width, rgb_image->height);
   GrayImage *gradient_image = createPGM(rgb_image->width, rgb_image->height);
-  float *angle_image = (float *) malloc(rgb_image->width * rgb_image->height * sizeof(float));
+  float *angle_image = new float[rgb_image->width * rgb_image->height];
   RGBImage *edge_color_image = readPPM(filename);
 
   if (rgb_image == NULL) {
-    printf("Error reading the image\n");
+    std::cout << "Error reading the image" << std::endl;
     exit(EXIT_FAILURE);
   }
   
@@ -46,18 +48,18 @@ void test_sobel_feldman(char *filename, int start_pixel_x, int start_pixel_y) {
   destroyPGM(gray_image);  
   destroyPGM(gradient_image);  
   destroyPPM(edge_color_image);  
-  free(angle_image);  
+  delete [] angle_image;
 }
 
 void test_canny(char *filename, int start_pixel_x, int start_pixel_y, int canny_min, int canny_max, int canny_sample_offset) {
   RGBImage *rgb_image = readPPM(filename);
   GrayImage *gray_image = createPGM(rgb_image->width, rgb_image->height);
   GrayImage *gradient_image = createPGM(rgb_image->width, rgb_image->height);
-  float *angle_image = (float *) malloc(rgb_image->width * rgb_image->height * sizeof(float));
+  float *angle_image = new float[rgb_image->width * rgb_image->height];
   RGBImage *edge_color_image = readPPM(filename);
 
   if (rgb_image == NULL) {
-    printf("Error reading the image\n");
+    std::cout << "Error reading the image" << std::endl;
     exit(EXIT_FAILURE);
   }
   
@@ -115,12 +117,12 @@ void test_canny(char *filename, int start_pixel_x, int start_pixel_y, int canny_
     
     file_index += 1;
   }
-  free(buffer_gray);
-  free(buffer_rgb);
+  destroyPGM(buffer_gray);
+  destroyPPM(buffer_rgb);
 
   destroyPPM(rgb_image);
   destroyPGM(gray_image);  
   destroyPGM(gradient_image);  
   destroyPPM(edge_color_image);  
-  free(angle_image);  
+  delete [] angle_image; 
 }

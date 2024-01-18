@@ -1,5 +1,4 @@
-#include <stdio.h>
-#include <cuda_runtime.h>
+#include <iostream>
 
 #include "utils.h"
 #include "main.h"
@@ -150,7 +149,7 @@ void gaussian_blur(unsigned char *h_matrix, int matrix_width, int matrix_height)
 
   dim3 threads = dim3(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
   dim3 blocks = dim3(matrix_width/MATRIX_SIZE_PER_BLOCK, matrix_height/MATRIX_SIZE_PER_BLOCK);
-  printf("Nombre de blocs lancés: %d %d\n", blocks.x, blocks.y);
+  std::cout << "Nombre de blocs lancés: " << blocks.x << " " << blocks.y << std::endl;
   convolution<<<blocks, threads>>>(d_input_matrix, d_output_matrix, matrix_width, matrix_height, d_kernel, KERNEL_WIDTH);
  
   cudaMemcpy(h_int_matrix, d_output_matrix, matrix_width*matrix_height*sizeof(int), cudaMemcpyDeviceToHost);

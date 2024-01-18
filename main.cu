@@ -1,6 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <cuda_runtime.h>
+#include <iostream>
 
 #include "main.h"
 #include "utils.h"
@@ -84,32 +82,32 @@ int main(int argc, char **argv) {
 
   test_canny(filename, start_pixel_x, start_pixel_y, canny_min_val, canny_max_val, canny_sample_offset);
 
-  printf(" === \n");
+  std::cout << " ===" << std::endl;
   cudaDeviceSynchronize();
   cudaError_t error = cudaPeekAtLastError();
-  printf("Error: %s\n", cudaGetErrorString(error));
+  std::cout << "Error: " << cudaGetErrorString(error) << std::endl;
 
   return 0;
 }
 
 void print_help() {
-  printf("Usage: ./main [OPTION] file\n");
-  printf("\t--start-pixel <x> <y>\t\t\tPixel coordinates where the cutout algorithm should start. (default: 0 0)\n");
+  std::cout << "Usage: ./main [OPTION] file" << std::endl;
+  std::cout << "\t--start-pixel <x> <y>\t\t\tPixel coordinates where the cutout algorithm should start. (default: 0 0)" << std::endl;
 
-  printf("\t--edge-detection <method>\t\tSpecify the method to use to process edge detection. (default: canny)\n");
-  printf("\t\t\t\t\t\tPermissible methods are 'sobel' and 'canny'.\n");
-  printf("\t--canny-thresholds <min> <max>\t\tSpecify the thresholds that have to be used by the Canny edge detector (default: 50 100)\n");
-  printf("\t\t\t\t\t\tPermissible values are integer between 0 and 255.\n");
-  printf("\t--processing-unit <processing-unit>\tSpecify where the cutout process has to be executed. (default: device)\n");
-  printf("\t\t\t\t\t\tPermissible processing units are 'host' (CPU) and 'device' (GPU).\n");
-  printf("\t--canny-sampling-offset <offset>\tSpecify that canny should produce multiple outputs, " \
-  "starting from the minimum value threshold up to the maximum value\n");
-  printf("\t\t\t\t\t\twith an offset of 'offset' between each sample.\n");
+  std::cout << "\t--edge-detection <method>\t\tSpecify the method to use to process edge detection. (default: canny)" << std::endl;
+  std::cout << "\t\t\t\t\t\tPermissible methods are 'sobel' and 'canny'." << std::endl;
+  std::cout << "\t--canny-thresholds <min> <max>\t\tSpecify the thresholds that have to be used by the Canny edge detector (default: 50 100)" << std::endl;
+  std::cout << "\t\t\t\t\t\tPermissible values are integer between 0 and 255." << std::endl;
+  std::cout << "\t--processing-unit <processing-unit>\tSpecify where the cutout process has to be executed. (default: device)" << std::endl;
+  std::cout << "\t\t\t\t\t\tPermissible processing units are 'host' (CPU) and 'device' (GPU)." << std::endl;
+  std::cout << "\t--canny-sampling-offset <offset>\tSpecify that canny should produce multiple outputs, " \
+  "starting from the minimum value threshold up to the maximum value" << std::endl;
+  std::cout << "\t\t\t\t\t\twith an offset of 'offset' between each sample." << std::endl;
 
-  printf("\t--help\t\t\t\t\tDisplay this help and exit.\n");
+  std::cout << "\t--help\t\t\t\t\tDisplay this help and exit." << std::endl;
 }
 
 void print_bad_usage() {
-  printf("Usage: ./main [OPTION] file\n");
-  printf("Try './main --help' for more information.\n");
+  std::cout << "Usage: ./main [OPTION] file" << std::endl;
+  std::cout << "Try './main --help' for more information." << std::endl;
 }

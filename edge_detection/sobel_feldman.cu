@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <iostream>
 #include <math.h>
 #include <cuda_runtime.h>
 
@@ -39,7 +39,7 @@ void sobel_feldman(unsigned char *h_input_matrix, unsigned char *h_gradient_matr
 
   // Horizontal gradient
   cudaMemcpy(d_kernel, sobel_kernel_horizontal_kernel, KERNEL_SIZE*KERNEL_SIZE * sizeof(int), cudaMemcpyHostToDevice);
-  printf("Nombre de blocs lancés: %d %d\n", blocks.x, blocks.y);
+  std::cout << "Nombre de blocs lancés: " << blocks.x << " " << blocks.y << std::endl;
   convolution<<<blocks, threads>>>(d_input_matrix, d_horizontal_gradient, matrix_width, matrix_height, d_kernel, 3);
   cudaDeviceSynchronize();
 
@@ -108,7 +108,7 @@ void generate_edge_color(unsigned char *h_gradient_matrix, float *h_angle_matrix
 
   dim3 threads = dim3(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
   dim3 blocks = dim3(matrix_width/MATRIX_SIZE_PER_BLOCK, matrix_height/MATRIX_SIZE_PER_BLOCK);
-  printf("Nombre de blocs lancés: %d %d\n", blocks.x, blocks.y);
+  std::cout << "Nombre de blocs lancés: " << blocks.x << " " << blocks.y << std::endl;
   edge_color<<<blocks, threads>>>(d_gradient_matrix, d_angle_matrix, d_output_image, matrix_width, matrix_height);
 
   cudaMemcpy(h_output_image, d_output_image, 3 * matrix_width * matrix_height * sizeof(unsigned char), cudaMemcpyDeviceToHost);
