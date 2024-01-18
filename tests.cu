@@ -1,14 +1,14 @@
 #include <iostream>
 
-#include "tests.h"
-#include "utils.h"
-#include "cutout.h"
+#include "tests.hpp"
+#include "utils.hpp"
+#include "cutout.hpp"
 
 #include "img.h"
 #include <opencv2/imgcodecs.hpp>
 
-#include "edge_detection/sobel_feldman.h"
-#include "edge_detection/canny.h"
+#include "edge_detection/sobel_feldman.hpp"
+#include "edge_detection/canny.hpp"
 
 void test_sobel_feldman(char *filename, int start_pixel_x, int start_pixel_y) {
   RGBImage *rgb_image = readPPM(filename);

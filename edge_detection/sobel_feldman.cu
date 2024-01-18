@@ -1,10 +1,9 @@
 #include <iostream>
 #include <math.h>
-#include <cuda_runtime.h>
 
-#include "sobel_feldman.h"
-#include "../main.h"
-#include "../utils.h"
+#include "sobel_feldman.hpp"
+#include "../main.hpp"
+#include "../utils.hpp"
 
 /**
  * Applies the Sobel-Feldman operator over a matrix.

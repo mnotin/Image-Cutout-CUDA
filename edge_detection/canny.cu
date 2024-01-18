@@ -1,9 +1,8 @@
-#include <cuda_runtime.h>
 #include <math.h>
 #include <stdio.h>
 
-#include "../main.h"
-#include "canny.h"
+#include "../main.hpp"
+#include "canny.hpp"
 
 void canny(unsigned char *h_gradient_matrix, float *h_angle_matrix, int matrix_width, int matrix_height, int canny_min, int canny_max) {
   int h_done = 0;

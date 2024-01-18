@@ -1,8 +1,8 @@
 #include <iostream>
 
-#include "main.h"
-#include "utils.h"
-#include "tests.h"
+#include "main.hpp"
+#include "utils.hpp"
+#include "tests.hpp"
 
 
 int main(int argc, char **argv) {

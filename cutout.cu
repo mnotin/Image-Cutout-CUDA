@@ -3,9 +3,9 @@
 #include <cuda_runtime.h>
 #include <unistd.h>
 
-#include "cutout.h"
-#include "main.h"
-#include "utils.h"
+#include "cutout.hpp"
+#include "main.hpp"
+#include "utils.hpp"
 
 void cutout(unsigned char *h_rgb_image, unsigned char *h_edge_matrix, int matrix_width, int matrix_height, int start_pixel_x, int start_pixel_y, int threshold) {
   int h_done = 0;

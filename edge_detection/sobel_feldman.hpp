@@ -1,5 +1,5 @@
-#ifndef SOBEL_FELDMAN_H
-#define SOBEL_FELDMAN_H
+#ifndef SOBEL_FELDMAN_HPP
+#define SOBEL_FELDMAN_HPP
 
 void sobel_feldman(unsigned char *h_input_matrix, unsigned char *h_gradient_matrix, float *h_angle_matrix, int matrix_width, int matrix_height);
 __global__ void global_gradient(unsigned char *output_matrix, int *horizontal_edges, int *vertical_edges, int matrix_width, int matrix_height);
@@ -8,4 +8,4 @@ void generate_edge_color(unsigned char *h_gradient_matrix, float *h_angle_matrix
 __global__ void edge_color(unsigned char *gradient_matrix, float *angle_matrix, unsigned char *output_image, int image_width, int image_height);
 __device__ char get_color_sobel(float angle);
 
-#endif // SOBEL_FELDMAN_H
+#endif // SOBEL_FELDMAN_HPP
