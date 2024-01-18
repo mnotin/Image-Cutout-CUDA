@@ -1,7 +1,8 @@
 #include <iostream>
 
 #include "tests.hpp"
-#include "utils.hpp"
+#include "utils/utils.hpp"
+#include "utils/rgb_to_gray.hpp"
 #include "cutout.hpp"
 
 #include "img.h"
@@ -30,7 +31,7 @@ void test_sobel_feldman(char *filename, int start_pixel_x, int start_pixel_y, Pr
     // 2. Second step, smooth the image using a Gaussian blur
     // to remove possible noise in the picture
     for (int i = 0; i < 5; i++) {
-      gaussian_blur(gray_image->data, gray_image->width, gray_image->height);
+      ProcessingUnitDevice::gaussian_blur(gray_image->data, gray_image->width, gray_image->height);
       cudaDeviceSynchronize();
     }
 
@@ -74,10 +75,11 @@ void test_canny(char *filename, int start_pixel_x, int start_pixel_y, int canny_
     // 1. First step, convert the picture into grayscale
     ProcessingUnitDevice::rgb_to_gray(rgb_image, gray_image);
 
+
     // 2. Second step, smooth the image using a Gaussian blur
     // to remove possible noise in the picture
     for (int i = 0; i < 5; i++) {
-      gaussian_blur(gray_image->data, gray_image->width, gray_image->height);
+      ProcessingUnitDevice::gaussian_blur(gray_image->data, gray_image->width, gray_image->height);
       cudaDeviceSynchronize();
     }
 

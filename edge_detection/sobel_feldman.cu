@@ -3,7 +3,7 @@
 
 #include "sobel_feldman.hpp"
 #include "../main.hpp"
-#include "../utils.hpp"
+#include "../utils/utils.hpp"
 
 /**
  * Applies the Sobel-Feldman operator over a matrix.
@@ -39,12 +39,12 @@ void sobel_feldman(unsigned char *h_input_matrix, unsigned char *h_gradient_matr
   // Horizontal gradient
   cudaMemcpy(d_kernel, sobel_kernel_horizontal_kernel, KERNEL_SIZE*KERNEL_SIZE * sizeof(int), cudaMemcpyHostToDevice);
   std::cout << "Nombre de blocs lancés: " << blocks.x << " " << blocks.y << std::endl;
-  convolution<<<blocks, threads>>>(d_input_matrix, d_horizontal_gradient, matrix_width, matrix_height, d_kernel, 3);
+  convolution_kernel<<<blocks, threads>>>(d_input_matrix, d_horizontal_gradient, matrix_width, matrix_height, d_kernel, 3);
   cudaDeviceSynchronize();
 
   // Vertical gradient
   cudaMemcpy(d_kernel, sobel_kernel_vertical_kernel, KERNEL_SIZE*KERNEL_SIZE * sizeof(int), cudaMemcpyHostToDevice);
-  convolution<<<blocks, threads>>>(d_input_matrix, d_vertical_gradient, matrix_width, matrix_height, d_kernel, 3);
+  convolution_kernel<<<blocks, threads>>>(d_input_matrix, d_vertical_gradient, matrix_width, matrix_height, d_kernel, 3);
   cudaDeviceSynchronize();
   
   // Global gradient
