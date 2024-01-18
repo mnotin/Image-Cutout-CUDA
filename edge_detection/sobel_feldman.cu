@@ -2,7 +2,7 @@
 #include <math.h>
 
 #include "sobel_feldman.hpp"
-#include "../../main.hpp"
+#include "../main.hpp"
 #include "../utils.hpp"
 
 /**

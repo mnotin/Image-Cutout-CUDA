@@ -1,9 +1,7 @@
 #include <iostream>
 
 #include "main.hpp"
-
-#include "device/tests.hpp"
-#include "device/utils.hpp"
+#include "tests.hpp"
 
 int main(int argc, char **argv) {
   char *filename;
@@ -81,17 +79,9 @@ int main(int argc, char **argv) {
   }
   
   if (edge_detection == EdgeDetection::SobelFeldman) {
-    if (processing_unit == ProcessingUnit::Device) {
-      ProcessingUnitDevice::test_sobel_feldman(filename, start_pixel_x, start_pixel_y);
-    } else if (processing_unit == ProcessingUnit::Host) {
-      // Todo ...
-    }
+    test_sobel_feldman(filename, start_pixel_x, start_pixel_y, processing_unit);
   } else if (edge_detection == EdgeDetection::Canny) {
-    if (processing_unit == ProcessingUnit::Device) {
-      ProcessingUnitDevice::test_canny(filename, start_pixel_x, start_pixel_y, canny_min_val, canny_max_val, canny_sample_offset);
-    } else if (processing_unit == ProcessingUnit::Host) {
-      // Todo ...
-    }
+    test_canny(filename, start_pixel_x, start_pixel_y, canny_min_val, canny_max_val, canny_sample_offset, processing_unit);
   }
 
   std::cout << " ===" << std::endl;

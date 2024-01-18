@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include "utils.hpp"
-#include "../main.hpp"
+#include "main.hpp"
 
 /**
  * Applies discrete convolution over a matrix using a given kernel.
@@ -91,18 +91,26 @@ __global__ void rgb_to_gray_kernel(unsigned char *rgb_image, unsigned char *gray
   unsigned int localIdxX = threadIdx.x + blockIdx.x * blockDim.x;
   unsigned int localIdxY = threadIdx.y + blockIdx.y * blockDim.y;
 
+  Vec2 index;
+  index.x = localIdxX;
+  index.y = localIdxY;
+
+  rgb_to_gray_core(index, rgb_image, gray_image, image_width, image_height);
+}
+
+__device__ __host__ void rgb_to_gray_core(Vec2 index, unsigned char *rgb_image, unsigned char *gray_image, int image_width, int image_height) {
   unsigned char r, g, b;
 
-  if (localIdxY*image_width+localIdxX < image_width * image_height) {
-    r = rgb_image[3 * (localIdxY*image_width + localIdxX)];
-    g = rgb_image[3 * (localIdxY*image_width + localIdxX) + 1];
-    b = rgb_image[3 * (localIdxY*image_width + localIdxX) + 2];
+  if (index.y*image_width+index.x < image_width * image_height) {
+    r = rgb_image[3 * (index.y*image_width + index.x)];
+    g = rgb_image[3 * (index.y*image_width + index.x) + 1];
+    b = rgb_image[3 * (index.y*image_width + index.x) + 2];
 
-    gray_image[localIdxY*image_width + localIdxX] = (0.21 * r + 0.71 * g + 0.07 * b);
+    gray_image[index.y*image_width + index.x] = (0.21 * r + 0.71 * g + 0.07 * b);
   }
 }
 
-void rgb_to_gray(RGBImage *h_rgb_image, GrayImage *h_gray_image) {
+void ProcessingUnitDevice::rgb_to_gray(RGBImage *h_rgb_image, GrayImage *h_gray_image) {
   // Allocating device memory
   unsigned char *d_rgb_image;
   unsigned char *d_gray_image;
@@ -126,6 +134,19 @@ void rgb_to_gray(RGBImage *h_rgb_image, GrayImage *h_gray_image) {
   cudaFree(d_rgb_image);
   cudaFree(d_gray_image);
 }
+
+void ProcessingUnitHost::rgb_to_gray(RGBImage *rgb_image, GrayImage *gray_image) {
+  for (int i = 0; i < gray_image->height; i++) {
+    for (int j = 0; j < gray_image->width; j++) {
+      Vec2 index;
+      index.x = j;
+      index.y = i;
+
+      rgb_to_gray_core(index, rgb_image->data, gray_image->data, gray_image->width, gray_image->height);
+    }
+  }
+}
+
 
 /**
  * Applies a gaussian blur over a matrix.
