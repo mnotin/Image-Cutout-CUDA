@@ -1,6 +1,10 @@
-main: main.cu img.cpp edge_detection/sobel_feldman.cu edge_detection/canny.cu cutout.cu utils.cu
-	nvcc -o main main.cu img.cpp edge_detection/sobel_feldman.cu edge_detection/canny.cu cutout.cu utils.cu -lm
+SRC=main.cu \
+    img.cpp \
+    device/edge_detection/sobel_feldman.cu \
+    device/edge_detection/canny.cu \
+    device/cutout.cu \
+    device/utils.cu \
+    device/tests.cu
 
-tests: main.cu img.cpp tests.cu edge_detection/sobel_feldman.cu edge_detection/canny.cu cutout.cu utils.cu
-	nvcc -o main main.cu img.cpp tests.cu edge_detection/sobel_feldman.cu edge_detection/canny.cu cutout.cu utils.cu -lm
-
+main: $(SRC)
+	nvcc -o main $(SRC) -lm

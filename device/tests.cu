@@ -4,13 +4,13 @@
 #include "utils.hpp"
 #include "cutout.hpp"
 
-#include "img.h"
-#include <opencv2/imgcodecs.hpp>
+#include "../img.h"
+#include <opencv2/opencv.hpp>
 
 #include "edge_detection/sobel_feldman.hpp"
 #include "edge_detection/canny.hpp"
 
-void test_sobel_feldman(char *filename, int start_pixel_x, int start_pixel_y) {
+void ProcessingUnitDevice::test_sobel_feldman(char *filename, int start_pixel_x, int start_pixel_y) {
   RGBImage *rgb_image = readPPM(filename);
   GrayImage *gray_image = createPGM(rgb_image->width, rgb_image->height);
   GrayImage *gradient_image = createPGM(rgb_image->width, rgb_image->height);
@@ -51,14 +51,13 @@ void test_sobel_feldman(char *filename, int start_pixel_x, int start_pixel_y) {
   delete [] angle_image;
 }
 
-void test_canny(char *filename, int start_pixel_x, int start_pixel_y, int canny_min, int canny_max, int canny_sample_offset) {
+void ProcessingUnitDevice::test_canny(char *filename, int start_pixel_x, int start_pixel_y, int canny_min, int canny_max, int canny_sample_offset) {
   RGBImage *rgb_image = readPPM(filename);
   GrayImage *gray_image = createPGM(rgb_image->width, rgb_image->height);
   GrayImage *gradient_image = createPGM(rgb_image->width, rgb_image->height);
   float *angle_image = new float[rgb_image->width * rgb_image->height];
   RGBImage *edge_color_image = readPPM(filename);
-
-  if (rgb_image == NULL) {
+   if (rgb_image == NULL) {
     std::cout << "Error reading the image" << std::endl;
     exit(EXIT_FAILURE);
   }
@@ -103,7 +102,7 @@ void test_canny(char *filename, int start_pixel_x, int start_pixel_y, int canny_
     // 4. Last step, cutout the object selected by the user
     memcpy(buffer_rgb->data, rgb_image->data, sizeof(unsigned char) * gradient_image->width * gradient_image->height * 3);
     cutout(buffer_rgb->data, buffer_gray->data, gray_image->width, gray_image->height, start_pixel_x, start_pixel_y, 0);
-  
+
     const char *prefix_rgb = "output/cutout_output";
     char number_rgb[4] = "000";
     sprintf(number_rgb, "%d", file_index);
@@ -114,7 +113,7 @@ void test_canny(char *filename, int start_pixel_x, int start_pixel_y, int canny_
     strcpy(filename_rgb + strlen(filename_rgb), ".ppm");
     printf("%s\n", filename_rgb);
     writePPM(filename_rgb, buffer_rgb);
-    
+  
     file_index += 1;
   }
   destroyPGM(buffer_gray);

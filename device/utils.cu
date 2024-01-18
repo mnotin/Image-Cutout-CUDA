@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include "utils.hpp"
-#include "main.hpp"
+#include "../main.hpp"
 
 /**
  * Applies discrete convolution over a matrix using a given kernel.

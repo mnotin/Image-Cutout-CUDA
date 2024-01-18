@@ -1,16 +1,16 @@
 #include <iostream>
 
 #include "main.hpp"
-#include "utils.hpp"
-#include "tests.hpp"
 
+#include "device/tests.hpp"
+#include "device/utils.hpp"
 
 int main(int argc, char **argv) {
   char *filename;
   int start_pixel_x = 0;
   int start_pixel_y = 0;
-  char edge_detection = 'c';
-  char processing_unit = 'd';
+  EdgeDetection edge_detection = EdgeDetection::Canny;
+  ProcessingUnit processing_unit = ProcessingUnit::Device;
   int canny_min_val = 50;
   int canny_max_val = 100;
   int canny_sample_offset = 0; // Zero: no sample; non-zero value: sample
@@ -31,10 +31,10 @@ int main(int argc, char **argv) {
         i += 2;
       } else if (strcmp(argv[i], "--edge-detection") == 0) {
         if (strcmp(argv[i+1], "sobel") == 0) {
-          edge_detection = 's';
+          edge_detection = EdgeDetection::SobelFeldman;
           i += 1;
         } else if (strcmp(argv[i+1], "canny") == 0) {
-          edge_detection = 'c';
+          edge_detection = EdgeDetection::Canny;
           i += 1;
         } else {
           bad_usage = 1;
@@ -49,10 +49,10 @@ int main(int argc, char **argv) {
         }
       } else if (strcmp(argv[i], "--processing-unit") == 0) {
         if (strcmp(argv[i+1], "host") == 0) {
-          processing_unit = 'h';
+          processing_unit = ProcessingUnit::Host;
           i += 1;
         } else if (strcmp(argv[i+1], "device") == 0) {
-          processing_unit = 'd';
+          processing_unit = ProcessingUnit::Device;
           i += 1;
         } else {
           bad_usage = 1;
@@ -79,8 +79,20 @@ int main(int argc, char **argv) {
       filename = argv[argc-1];
     }
   }
-
-  test_canny(filename, start_pixel_x, start_pixel_y, canny_min_val, canny_max_val, canny_sample_offset);
+  
+  if (edge_detection == EdgeDetection::SobelFeldman) {
+    if (processing_unit == ProcessingUnit::Device) {
+      ProcessingUnitDevice::test_sobel_feldman(filename, start_pixel_x, start_pixel_y);
+    } else if (processing_unit == ProcessingUnit::Host) {
+      // Todo ...
+    }
+  } else if (edge_detection == EdgeDetection::Canny) {
+    if (processing_unit == ProcessingUnit::Device) {
+      ProcessingUnitDevice::test_canny(filename, start_pixel_x, start_pixel_y, canny_min_val, canny_max_val, canny_sample_offset);
+    } else if (processing_unit == ProcessingUnit::Host) {
+      // Todo ...
+    }
+  }
 
   std::cout << " ===" << std::endl;
   cudaDeviceSynchronize();
