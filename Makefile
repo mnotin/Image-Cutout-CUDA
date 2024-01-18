@@ -4,7 +4,8 @@ SRC=main.cu \
     edge_detection/sobel_feldman.cu \
     edge_detection/canny.cu \
     cutout.cu \
-    utils/utils.cu \
+    utils/convolution.cu \
+    utils/gaussian_blur.cu \
     utils/rgb_to_gray.cu
 
 

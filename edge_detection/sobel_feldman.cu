@@ -3,7 +3,7 @@
 
 #include "sobel_feldman.hpp"
 #include "../main.hpp"
-#include "../utils/utils.hpp"
+#include "../utils/convolution.hpp"
 
 /**
  * Applies the Sobel-Feldman operator over a matrix.

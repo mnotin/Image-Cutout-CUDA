@@ -1,8 +1,9 @@
 #include <iostream>
 
 #include "tests.hpp"
-#include "utils/utils.hpp"
+#include "utils/convolution.hpp"
 #include "utils/rgb_to_gray.hpp"
+#include "utils/gaussian_blur.hpp"
 #include "cutout.hpp"
 
 #include "img.h"
