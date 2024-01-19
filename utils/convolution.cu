@@ -3,13 +3,13 @@
 #include "convolution.hpp"
 #include "../main.hpp"
 
-__global__ void convolution_kernel(unsigned char *input_matrix, int *output_matrix, int matrix_width, int matrix_height, float *kernel, int kernel_size) {
+__global__ void convolution_kernel(unsigned char *input_matrix, int *output_matrix, Dim matrix_dim, float *kernel, int kernel_size) {
   int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
   int localIdxX = threadIdx.x;
   int localIdxY = threadIdx.y;
   
-  int current_matrix_index = globalIdxY*matrix_width + globalIdxX;
+  int current_matrix_index = globalIdxY*matrix_dim.width + globalIdxX;
   int current_shared_matrix_index = MATRIX_SIZE_PER_BLOCK+2+1+ localIdxY*(MATRIX_SIZE_PER_BLOCK+2) + localIdxX;
 
   __shared__ unsigned char shared_matrix[(MATRIX_SIZE_PER_BLOCK+2)*(MATRIX_SIZE_PER_BLOCK+2)];
@@ -33,15 +33,15 @@ __global__ void convolution_kernel(unsigned char *input_matrix, int *output_matr
       if (0 == globalIdxY) {
         first_line_offset = 0;
       }
-      shared_matrix[i] = input_matrix[(globalIdxY+first_line_offset)*matrix_width + globalIdxX + i - 1];
+      shared_matrix[i] = input_matrix[(globalIdxY+first_line_offset)*matrix_dim.width + globalIdxX + i - 1];
       
       // Last line
       int last_line_offset = 0;
-      if (globalIdxY+MATRIX_SIZE_PER_BLOCK == matrix_height) {
+      if (globalIdxY+MATRIX_SIZE_PER_BLOCK == matrix_dim.height) {
         last_line_offset = -1;
       }
       shared_matrix[(MATRIX_SIZE_PER_BLOCK+2)*(MATRIX_SIZE_PER_BLOCK+1)+i] =
-        input_matrix[(globalIdxY+MATRIX_SIZE_PER_BLOCK+last_line_offset)*matrix_width + globalIdxX + i - 1];
+        input_matrix[(globalIdxY+MATRIX_SIZE_PER_BLOCK+last_line_offset)*matrix_dim.width + globalIdxX + i - 1];
     }
 
     for (int i = 0; i < MATRIX_SIZE_PER_BLOCK; i++) {
@@ -51,15 +51,15 @@ __global__ void convolution_kernel(unsigned char *input_matrix, int *output_matr
         left_side_offset = 0;
       }
       shared_matrix[MATRIX_SIZE_PER_BLOCK+2 + i*(MATRIX_SIZE_PER_BLOCK+2)] = 
-        input_matrix[(globalIdxY+i)*matrix_width + globalIdxX + left_side_offset];
+        input_matrix[(globalIdxY+i)*matrix_dim.width + globalIdxX + left_side_offset];
 
       // Right side
       int right_side_offset = 0;
-      if (globalIdxX+MATRIX_SIZE_PER_BLOCK == matrix_width) {
+      if (globalIdxX+MATRIX_SIZE_PER_BLOCK == matrix_dim.width) {
         right_side_offset = -1;
       }
       shared_matrix[MATRIX_SIZE_PER_BLOCK+2 + (i+1)*(MATRIX_SIZE_PER_BLOCK+2) - 1] =
-        input_matrix[(globalIdxY+i)*matrix_width + globalIdxX+MATRIX_SIZE_PER_BLOCK + right_side_offset];
+        input_matrix[(globalIdxY+i)*matrix_dim.width + globalIdxX+MATRIX_SIZE_PER_BLOCK + right_side_offset];
     }
   }
   __syncthreads();
@@ -67,11 +67,13 @@ __global__ void convolution_kernel(unsigned char *input_matrix, int *output_matr
   Vec2 index;
   index.x = localIdxX;
   index.y = localIdxY;
+  Dim shared_matrix_dim;
+  shared_matrix_dim.width = MATRIX_SIZE_PER_BLOCK+2;
+  shared_matrix_dim.height = MATRIX_SIZE_PER_BLOCK+2;
   output_matrix[current_matrix_index] = convolution_core(index,
     shared_matrix,
     output_matrix,
-    MATRIX_SIZE_PER_BLOCK+2,
-    MATRIX_SIZE_PER_BLOCK+2,
+    shared_matrix_dim,
     kernel,
     kernel_size);
 }
@@ -81,7 +83,7 @@ __global__ void convolution_kernel(unsigned char *input_matrix, int *output_matr
  * This kernel should be called using appropriate number of grids, blocks and threads to match the resolution of the image.
  **/
 __device__ __host__ int convolution_core(Vec2 index, unsigned char *input_matrix, int *output_matrix,
-  int matrix_width, int matrix_height, float *kernel, int kernel_size
+  Dim matrix_dim, float *kernel, int kernel_size
 ) {
   int convolution_result = 0;
 
@@ -89,9 +91,9 @@ __device__ __host__ int convolution_core(Vec2 index, unsigned char *input_matrix
     for (int j = 0; j < kernel_size; j++) {
       int vertical_offset = ((index.y + i) - (int)floor(kernel_size/2.0));
       int horizontal_offset = (index.x + j) - (int)floor(kernel_size/2.0);
-      int tmp_index = vertical_offset*matrix_width + horizontal_offset;
+      int tmp_index = vertical_offset*matrix_dim.width + horizontal_offset;
       
-      convolution_result += input_matrix[matrix_width+1 + tmp_index] * kernel[i*kernel_size + j];
+      convolution_result += input_matrix[matrix_dim.width+1 + tmp_index] * kernel[i*kernel_size + j];
     }
   }
 

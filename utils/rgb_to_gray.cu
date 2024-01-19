@@ -4,7 +4,7 @@
 #include "rgb_to_gray.hpp"
 #include "../main.hpp"
 
-__global__ void rgb_to_gray_kernel(unsigned char *rgb_image, unsigned char *gray_image, int image_width, int image_height) {
+__global__ void rgb_to_gray_kernel(unsigned char *rgb_image, unsigned char *gray_image, Dim image_dim) {
   unsigned int localIdxX = threadIdx.x + blockIdx.x * blockDim.x;
   unsigned int localIdxY = threadIdx.y + blockIdx.y * blockDim.y;
 
@@ -12,22 +12,26 @@ __global__ void rgb_to_gray_kernel(unsigned char *rgb_image, unsigned char *gray
   index.x = localIdxX;
   index.y = localIdxY;
 
-  rgb_to_gray_core(index, rgb_image, gray_image, image_width, image_height);
+  rgb_to_gray_core(index, rgb_image, gray_image, image_dim);
 }
 
-__device__ __host__ void rgb_to_gray_core(Vec2 index, unsigned char *rgb_image, unsigned char *gray_image, int image_width, int image_height) {
+__device__ __host__ void rgb_to_gray_core(Vec2 index, unsigned char *rgb_image, unsigned char *gray_image, Dim image_dim) {
   unsigned char r, g, b;
 
-  if (index.y*image_width+index.x < image_width * image_height) {
-    r = rgb_image[3 * (index.y*image_width + index.x)];
-    g = rgb_image[3 * (index.y*image_width + index.x) + 1];
-    b = rgb_image[3 * (index.y*image_width + index.x) + 2];
+  if (index.y*image_dim.width+index.x < image_dim.width * image_dim.height) {
+    r = rgb_image[3 * (index.y*image_dim.width + index.x)];
+    g = rgb_image[3 * (index.y*image_dim.width + index.x) + 1];
+    b = rgb_image[3 * (index.y*image_dim.width + index.x) + 2];
 
-    gray_image[index.y*image_width + index.x] = (0.21 * r + 0.71 * g + 0.07 * b);
+    gray_image[index.y*image_dim.width + index.x] = (0.21 * r + 0.71 * g + 0.07 * b);
   }
 }
 
 void ProcessingUnitDevice::rgb_to_gray(RGBImage *h_rgb_image, GrayImage *h_gray_image) {
+  Dim rgb_image_dim;
+  rgb_image_dim.width = h_rgb_image->width;
+  rgb_image_dim.height = h_rgb_image->height;
+
   // Allocating device memory
   unsigned char *d_rgb_image;
   unsigned char *d_gray_image;
@@ -43,7 +47,7 @@ void ProcessingUnitDevice::rgb_to_gray(RGBImage *h_rgb_image, GrayImage *h_gray_
   dim3 blocks = dim3(h_rgb_image->width/MATRIX_SIZE_PER_BLOCK, h_rgb_image->height/MATRIX_SIZE_PER_BLOCK);
 
   // Invoke CUDA kernel
-  rgb_to_gray_kernel<<<blocks, threads>>>(d_rgb_image, d_gray_image, h_rgb_image->width, h_rgb_image->height);
+  rgb_to_gray_kernel<<<blocks, threads>>>(d_rgb_image, d_gray_image, rgb_image_dim);
 
   // Copy result from device to host
   cudaMemcpy(h_gray_image->data, d_gray_image, h_gray_image->width * h_gray_image->height, cudaMemcpyDeviceToHost);
@@ -53,13 +57,17 @@ void ProcessingUnitDevice::rgb_to_gray(RGBImage *h_rgb_image, GrayImage *h_gray_
 }
 
 void ProcessingUnitHost::rgb_to_gray(RGBImage *rgb_image, GrayImage *gray_image) {
+  Dim gray_image_dim;
+  gray_image_dim.width = gray_image->width;
+  gray_image_dim.height = gray_image->height;
+
   for (int i = 0; i < gray_image->height; i++) {
     for (int j = 0; j < gray_image->width; j++) {
       Vec2 index;
       index.x = j;
       index.y = i;
 
-      rgb_to_gray_core(index, rgb_image->data, gray_image->data, gray_image->width, gray_image->height);
+      rgb_to_gray_core(index, rgb_image->data, gray_image->data, gray_image_dim);
     }
   }
 }

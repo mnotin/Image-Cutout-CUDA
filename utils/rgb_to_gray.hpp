@@ -5,8 +5,8 @@
 #include "../main.hpp"
 #include "../img.h"
 
-__global__ void rgb_to_gray_kernel(unsigned char *rgb_image, unsigned char *gray_image, int image_width, int image_height);
-__device__ __host__ void rgb_to_gray_core(Vec2 index, unsigned char *rgb_image, unsigned char *gray_image, int image_width, int image_height);
+__global__ void rgb_to_gray_kernel(unsigned char *rgb_image, unsigned char *gray_image, Dim image_dim);
+__device__ __host__ void rgb_to_gray_core(Vec2 index, unsigned char *rgb_image, unsigned char *gray_image, Dim image_dim);
 
 
 namespace ProcessingUnitDevice {
