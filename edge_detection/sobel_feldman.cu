@@ -5,18 +5,18 @@
 #include "../main.hpp"
 #include "../utils/convolution.hpp"
 
+const int KERNEL_SIZE = 3;
+const float SOBEL_HORIZONTAL_KERNEL[KERNEL_SIZE*KERNEL_SIZE] = { 1, 0,  -1, 
+                                                                        2, 0,  -2, 
+                                                                        1, 0, -1};
+const float SOBEL_VERTICAL_KERNEL[KERNEL_SIZE*KERNEL_SIZE] = { 1,  2,  1,
+                                                                      0,  0,  0,
+                                                                     -1, -2, -1}; 
 /**
  * Applies the Sobel-Feldman operator over a matrix.
  * The picture should have been smoothed and converted to grayscale prior to being passed over the Sobel-Feldman operator. 
  **/
-void sobel_feldman(unsigned char *h_input_matrix, unsigned char *h_gradient_matrix, float *h_angle_matrix, Dim matrix_dim) {
-  const int KERNEL_SIZE = 3;
-  float sobel_kernel_horizontal_kernel[KERNEL_SIZE*KERNEL_SIZE] = {1, 0,  -1, 
-                                                                   2, 0,  -2, 
-                                                                   1, 0, -1};
-  float sobel_kernel_vertical_kernel[KERNEL_SIZE*KERNEL_SIZE] = { 1,  2,  1,
-                                                                  0,  0,  0,
-                                                                 -1, -2, -1}; 
+void ProcessingUnitDevice::sobel_feldman(unsigned char *h_input_matrix, unsigned char *h_gradient_matrix, float *h_angle_matrix, Dim matrix_dim) {
   dim3 threads = dim3(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
   dim3 blocks = dim3(matrix_dim.width/MATRIX_SIZE_PER_BLOCK, matrix_dim.height/MATRIX_SIZE_PER_BLOCK);
 
@@ -37,23 +37,23 @@ void sobel_feldman(unsigned char *h_input_matrix, unsigned char *h_gradient_matr
   cudaMemcpy(d_input_matrix, h_input_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char), cudaMemcpyHostToDevice);
 
   // Horizontal gradient
-  cudaMemcpy(d_kernel, sobel_kernel_horizontal_kernel, KERNEL_SIZE*KERNEL_SIZE * sizeof(int), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_kernel, SOBEL_HORIZONTAL_KERNEL, KERNEL_SIZE*KERNEL_SIZE * sizeof(int), cudaMemcpyHostToDevice);
   std::cout << "Nombre de blocs lancés: " << blocks.x << " " << blocks.y << std::endl;
   convolution_kernel<<<blocks, threads>>>(d_input_matrix, d_horizontal_gradient, matrix_dim, d_kernel, 3);
   cudaDeviceSynchronize();
 
   // Vertical gradient
-  cudaMemcpy(d_kernel, sobel_kernel_vertical_kernel, KERNEL_SIZE*KERNEL_SIZE * sizeof(int), cudaMemcpyHostToDevice);
-  convolution_kernel<<<blocks, threads>>>(d_input_matrix, d_vertical_gradient, matrix_dim, d_kernel, 3);
+  cudaMemcpy(d_kernel, SOBEL_VERTICAL_KERNEL, KERNEL_SIZE*KERNEL_SIZE * sizeof(int), cudaMemcpyHostToDevice);
+  convolution_kernel<<<blocks, threads>>>(d_input_matrix, d_vertical_gradient, matrix_dim, d_kernel, KERNEL_SIZE);
   cudaDeviceSynchronize();
   
   // Global gradient
-  global_gradient<<<blocks, threads>>>(d_gradient_matrix, d_horizontal_gradient, d_vertical_gradient, matrix_dim); 
+  global_gradient_kernel<<<blocks, threads>>>(d_gradient_matrix, d_horizontal_gradient, d_vertical_gradient, matrix_dim); 
   cudaMemcpy(h_gradient_matrix, d_gradient_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char), cudaMemcpyDeviceToHost);
   cudaDeviceSynchronize();
  
   // Angle of the gradient
-  angle<<<blocks, threads>>>(d_horizontal_gradient, d_vertical_gradient, d_angle_matrix, matrix_dim);
+  angle_kernel<<<blocks, threads>>>(d_horizontal_gradient, d_vertical_gradient, d_angle_matrix, matrix_dim);
   cudaMemcpy(h_angle_matrix, d_angle_matrix, matrix_dim.width * matrix_dim.height * sizeof(float), cudaMemcpyDeviceToHost);
   cudaDeviceSynchronize();
 
@@ -65,32 +65,80 @@ void sobel_feldman(unsigned char *h_input_matrix, unsigned char *h_gradient_matr
   cudaFree(d_kernel);
 }
 
+void ProcessingUnitHost::sobel_feldman(unsigned char *input_matrix, unsigned char *gradient_matrix, float *angle_matrix, Dim matrix_dim) {
+  int *horizontal_gradient = new int[matrix_dim.width * matrix_dim.height];
+  int *vertical_gradient = new int[matrix_dim.width * matrix_dim.height];
+
+  Vec2 index;
+
+  // Horizontal gradient
+  for (index.y = 0; index.y < matrix_dim.height; index.y++) {
+    for (index.x = 0; index.x < matrix_dim.width; index.x++) {
+      horizontal_gradient[index.y*matrix_dim.width + index.x] = convolution_core(index, input_matrix, matrix_dim, SOBEL_HORIZONTAL_KERNEL, KERNEL_SIZE);
+    }
+  }
+
+  // Vertical gradient
+  for (index.y = 0; index.y < matrix_dim.height; index.y++) {
+    for (index.x = 0; index.x < matrix_dim.width; index.x++) {
+      vertical_gradient[index.y*matrix_dim.width + index.x] = convolution_core(index, input_matrix, matrix_dim, SOBEL_VERTICAL_KERNEL, KERNEL_SIZE);
+    }
+  }
+  
+  // Global gradient
+  for (index.y = 0; index.y < matrix_dim.height; index.y++) {
+    for (index.x = 0; index.x < matrix_dim.width; index.x++) {
+      gradient_matrix[index.y*matrix_dim.width + index.x] = global_gradient_core(index, horizontal_gradient, vertical_gradient, matrix_dim); 
+    }
+  }
+  
+  for (index.y = 0; index.y < matrix_dim.height; index.y++) {
+    for (index.x = 0; index.x < matrix_dim.width; index.x++) {
+      angle_matrix[index.y*matrix_dim.width + index.x] = angle_core(index, horizontal_gradient, vertical_gradient, matrix_dim);
+    }
+  }
+  
+  delete [] horizontal_gradient;
+  delete [] vertical_gradient;
+}
+
+
 /**
  * Computes the global gradient of an image after being processed by the Sobel-Feldman operator.
  **/
-__global__ void global_gradient(unsigned char *output_matrix, int *horizontal_edges, int *vertical_edges, Dim matrix_dim) {
-  int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
-  int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
-  const int GLOBAL_IDX = globalIdxY * matrix_dim.width + globalIdxX;
+__global__ void global_gradient_kernel(unsigned char *output_matrix, int *horizontal_edges, int *vertical_edges, Dim matrix_dim) {
+  Vec2 index;
+  index.x = threadIdx.x + (blockIdx.x * blockDim.x);
+  index.y = threadIdx.y + (blockIdx.y * blockDim.y);
 
-  int g_x = horizontal_edges[GLOBAL_IDX];
-  int g_y = vertical_edges[GLOBAL_IDX];
+  output_matrix[index.y * matrix_dim.width + index.x] = global_gradient_core(index, horizontal_edges, vertical_edges, matrix_dim);
+}
+
+__device__ __host__ unsigned char global_gradient_core(Vec2 index, int *horizontal_edges, int *vertical_edges, Dim matrix_dim) {
+  int g_x = horizontal_edges[index.y * matrix_dim.width + index.x];
+  int g_y = vertical_edges[index.y * matrix_dim.width + index.x];
   float global_gradient = sqrt((double) g_x * g_x + g_y * g_y);
 
-  output_matrix[GLOBAL_IDX] = global_gradient <= 255.0 ? (unsigned char) global_gradient : 255;
+  return global_gradient <= 255.0 ? (unsigned char) global_gradient : 255;
 }
 
-__global__ void angle(int *horizontal_gradient, int *vertical_gradient, float *angle_matrix, Dim matrix_dim) {
-  int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
-  int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
-  const int GLOBAL_IDX = globalIdxY * matrix_dim.width + globalIdxX;
 
-  int g_x = horizontal_gradient[GLOBAL_IDX];
-  int g_y = vertical_gradient[GLOBAL_IDX];
+__global__ void angle_kernel(int *horizontal_gradient, int *vertical_gradient, float *angle_matrix, Dim matrix_dim) {
+  Vec2 index;
+  index.x = threadIdx.x + (blockIdx.x * blockDim.x);
+  index.y = threadIdx.y + (blockIdx.y * blockDim.y);
+
+  angle_matrix[index.y * matrix_dim.width + index.x] = angle_core(index, horizontal_gradient, vertical_gradient, matrix_dim); 
+}
+
+__device__ __host__ float angle_core(Vec2 index, int *horizontal_gradient, int *vertical_gradient, Dim matrix_dim) {
+  int g_x = horizontal_gradient[index.y * matrix_dim.width + index.x];
+  int g_y = vertical_gradient[index.y * matrix_dim.width + index.x];
   float angle = atan((float) g_y / g_x);
 
-  angle_matrix[GLOBAL_IDX] = angle; 
+  return angle; 
 }
+
 
 void generate_edge_color(unsigned char *h_gradient_matrix, float *h_angle_matrix, unsigned char *h_output_image, Dim matrix_dim) {
   unsigned char *d_gradient_matrix;

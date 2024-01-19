@@ -1,30 +1,27 @@
-
 #include <iostream>
 
 #include "rgb_to_gray.hpp"
 #include "../main.hpp"
 
 __global__ void rgb_to_gray_kernel(unsigned char *rgb_image, unsigned char *gray_image, Dim image_dim) {
-  unsigned int localIdxX = threadIdx.x + blockIdx.x * blockDim.x;
-  unsigned int localIdxY = threadIdx.y + blockIdx.y * blockDim.y;
-
   Vec2 index;
-  index.x = localIdxX;
-  index.y = localIdxY;
+  index.x = threadIdx.x + blockIdx.x * blockDim.x;
+  index.y = threadIdx.y + blockIdx.y * blockDim.y;
 
-  rgb_to_gray_core(index, rgb_image, gray_image, image_dim);
+
+  gray_image[index.y*image_dim.width + index.x] = rgb_to_gray_core(index, rgb_image, image_dim);
 }
 
-__device__ __host__ void rgb_to_gray_core(Vec2 index, unsigned char *rgb_image, unsigned char *gray_image, Dim image_dim) {
-  unsigned char r, g, b;
+__device__ __host__ unsigned char rgb_to_gray_core(Vec2 index, unsigned char *rgb_image, Dim image_dim) {
+  unsigned char r = 0, g = 0, b = 0;
 
   if (index.y*image_dim.width+index.x < image_dim.width * image_dim.height) {
     r = rgb_image[3 * (index.y*image_dim.width + index.x)];
     g = rgb_image[3 * (index.y*image_dim.width + index.x) + 1];
     b = rgb_image[3 * (index.y*image_dim.width + index.x) + 2];
-
-    gray_image[index.y*image_dim.width + index.x] = (0.21 * r + 0.71 * g + 0.07 * b);
   }
+
+  return (0.21 * r + 0.71 * g + 0.07 * b);
 }
 
 void ProcessingUnitDevice::rgb_to_gray(RGBImage *h_rgb_image, GrayImage *h_gray_image) {
@@ -67,7 +64,7 @@ void ProcessingUnitHost::rgb_to_gray(RGBImage *rgb_image, GrayImage *gray_image)
       index.x = j;
       index.y = i;
 
-      rgb_to_gray_core(index, rgb_image->data, gray_image->data, gray_image_dim);
+      gray_image->data[i*gray_image->width + j] = rgb_to_gray_core(index, rgb_image->data, gray_image_dim);
     }
   }
 }

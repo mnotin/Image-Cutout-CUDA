@@ -3,7 +3,7 @@
 #include "convolution.hpp"
 #include "../main.hpp"
 
-__global__ void convolution_kernel(unsigned char *input_matrix, int *output_matrix, Dim matrix_dim, float *kernel, int kernel_size) {
+__global__ void convolution_kernel(unsigned char *input_matrix, int *output_matrix, Dim matrix_dim, const float *kernel, int kernel_size) {
   int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
   int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
   int localIdxX = threadIdx.x;
@@ -72,7 +72,6 @@ __global__ void convolution_kernel(unsigned char *input_matrix, int *output_matr
   shared_matrix_dim.height = MATRIX_SIZE_PER_BLOCK+2;
   output_matrix[current_matrix_index] = convolution_core(index,
     shared_matrix,
-    output_matrix,
     shared_matrix_dim,
     kernel,
     kernel_size);
@@ -82,9 +81,7 @@ __global__ void convolution_kernel(unsigned char *input_matrix, int *output_matr
  * Applies discrete convolution over a matrix using a given kernel.
  * This kernel should be called using appropriate number of grids, blocks and threads to match the resolution of the image.
  **/
-__device__ __host__ int convolution_core(Vec2 index, unsigned char *input_matrix, int *output_matrix,
-  Dim matrix_dim, float *kernel, int kernel_size
-) {
+__device__ __host__ int convolution_core(Vec2 index, unsigned char *input_matrix, Dim matrix_dim, const float *kernel, int kernel_size) {
   int convolution_result = 0;
 
   for (int i = 0; i < kernel_size; i++) {

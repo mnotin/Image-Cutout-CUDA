@@ -62,7 +62,6 @@ void ProcessingUnitHost::gaussian_blur(unsigned char *matrix, Dim matrix_dim) {
 
       output_matrix[i*matrix_dim.width + j] = convolution_core(index, 
         matrix,
-        output_matrix,
         matrix_dim,
         gaussian_blur_kernel,
         KERNEL_WIDTH);
