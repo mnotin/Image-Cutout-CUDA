@@ -5,8 +5,7 @@
 
 int main(int argc, char **argv) {
   char *filename;
-  int start_pixel_x = 0;
-  int start_pixel_y = 0;
+  Vec2 start_pixel;
   EdgeDetection edge_detection = EdgeDetection::Canny;
   ProcessingUnit processing_unit = ProcessingUnit::Device;
   int canny_min_val = 50;
@@ -24,8 +23,8 @@ int main(int argc, char **argv) {
 
     for (i = 1; i < argc && !bad_usage; i++) {
       if (strcmp(argv[i], "--start-pixel") == 0) {
-        start_pixel_x = atoi(argv[i+1]);
-        start_pixel_y = atoi(argv[i+2]);
+        start_pixel.x = atoi(argv[i+1]);
+        start_pixel.y = atoi(argv[i+2]);
         i += 2;
       } else if (strcmp(argv[i], "--edge-detection") == 0) {
         if (strcmp(argv[i+1], "sobel") == 0) {
@@ -79,9 +78,9 @@ int main(int argc, char **argv) {
   }
   
   if (edge_detection == EdgeDetection::SobelFeldman) {
-    test_sobel_feldman(filename, start_pixel_x, start_pixel_y, processing_unit);
+    test_sobel_feldman(filename, start_pixel, processing_unit);
   } else if (edge_detection == EdgeDetection::Canny) {
-    test_canny(filename, start_pixel_x, start_pixel_y, canny_min_val, canny_max_val, canny_sample_offset, processing_unit);
+    test_canny(filename, start_pixel, canny_min_val, canny_max_val, canny_sample_offset, processing_unit);
   }
 
   std::cout << " ===" << std::endl;

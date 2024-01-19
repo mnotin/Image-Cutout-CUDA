@@ -7,8 +7,8 @@ enum EdgeDetection { SobelFeldman, Canny };
 enum ProcessingUnit { Host, Device };
 
 typedef struct Vec2 {
-  int x;
-  int y;
+  int x = 0;
+  int y = 0;
 } Vec2 ;
 
 void print_help();

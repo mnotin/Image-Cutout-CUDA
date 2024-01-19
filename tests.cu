@@ -7,12 +7,11 @@
 #include "cutout.hpp"
 
 #include "img.h"
-#include <opencv2/opencv.hpp>
 
 #include "edge_detection/sobel_feldman.hpp"
 #include "edge_detection/canny.hpp"
 
-void test_sobel_feldman(char *filename, int start_pixel_x, int start_pixel_y, ProcessingUnit processing_unit) {
+void test_sobel_feldman(char *filename, Vec2 start_pixel, ProcessingUnit processing_unit) {
   RGBImage *rgb_image = readPPM(filename);
   GrayImage *gray_image = createPGM(rgb_image->width, rgb_image->height);
   GrayImage *gradient_image = createPGM(rgb_image->width, rgb_image->height);
@@ -44,9 +43,17 @@ void test_sobel_feldman(char *filename, int start_pixel_x, int start_pixel_y, Pr
     writePPM("output/edge_color_output.ppm", edge_color_image);
 
     // 4. Last step, cutout the object selected by the user
-    cutout(rgb_image->data, gradient_image->data, gray_image->width, gray_image->height, start_pixel_x, start_pixel_y, 0);
+    cutout(rgb_image->data, gradient_image->data, gray_image->width, gray_image->height, start_pixel, 0);
   } else if (processing_unit == ProcessingUnit::Host) {
     // CPU
+    // 1. First step, convert the picture into grayscale
+    ProcessingUnitHost::rgb_to_gray(rgb_image, gray_image);
+    
+    // 2. Second step, smooth the image using a Gaussian blur
+    // to remove possible noise in the picture
+    for (int i = 0; i < 5; i++) {
+      ProcessingUnitHost::gaussian_blur(gray_image->data, gray_image->width, gray_image->height);
+    }
   }
   
   writePPM("output/cutout_output.ppm", rgb_image);
@@ -58,7 +65,7 @@ void test_sobel_feldman(char *filename, int start_pixel_x, int start_pixel_y, Pr
   delete [] angle_image;
 }
 
-void test_canny(char *filename, int start_pixel_x, int start_pixel_y, int canny_min,
+void test_canny(char *filename, Vec2 start_pixel, int canny_min,
   int canny_max, int canny_sample_offset, ProcessingUnit processing_unit
 ) {
   RGBImage *rgb_image = readPPM(filename);
@@ -75,7 +82,6 @@ void test_canny(char *filename, int start_pixel_x, int start_pixel_y, int canny_
     // GPU
     // 1. First step, convert the picture into grayscale
     ProcessingUnitDevice::rgb_to_gray(rgb_image, gray_image);
-
 
     // 2. Second step, smooth the image using a Gaussian blur
     // to remove possible noise in the picture
@@ -113,7 +119,7 @@ void test_canny(char *filename, int start_pixel_x, int start_pixel_y, int canny_
     
       // 4. Last step, cutout the object selected by the user
       memcpy(buffer_rgb->data, rgb_image->data, sizeof(unsigned char) * gradient_image->width * gradient_image->height * 3);
-      cutout(buffer_rgb->data, buffer_gray->data, gray_image->width, gray_image->height, start_pixel_x, start_pixel_y, 0);
+      cutout(buffer_rgb->data, buffer_gray->data, gray_image->width, gray_image->height, start_pixel, 0);
 
       const char *prefix_rgb = "output/cutout_output";
       char number_rgb[4] = "000";
@@ -131,6 +137,15 @@ void test_canny(char *filename, int start_pixel_x, int start_pixel_y, int canny_
     destroyPGM(buffer_gray);
     destroyPPM(buffer_rgb);
   } else if (processing_unit == ProcessingUnit::Host) {
+    // CPU
+    // 1. First step, convert the picture into grayscale
+    ProcessingUnitHost::rgb_to_gray(rgb_image, gray_image);
+
+    // 2. Second step, smooth the image using a Gaussian blur
+    // to remove possible noise in the picture
+    for (int i = 0; i < 5; i++) {
+      ProcessingUnitHost::gaussian_blur(gray_image->data, gray_image->width, gray_image->height);
+    }
   }
 
   destroyPPM(rgb_image);
