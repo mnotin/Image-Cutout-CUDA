@@ -46,7 +46,7 @@ void test_sobel_feldman(char *filename, Vec2 start_pixel, ProcessingUnit process
     ProcessingUnitDevice::sobel_feldman(gray_image->data, gradient_image->data, angle_image, gray_image_dim);
     writePGM("output/sf_gradient_output.pgm", gradient_image);
 
-    generate_edge_color(gradient_image->data, angle_image, edge_color_image->data, rgb_image_dim);
+    ProcessingUnitDevice::generate_edge_color(gradient_image->data, angle_image, edge_color_image->data, rgb_image_dim);
     writePPM("output/edge_color_output.ppm", edge_color_image);
 
     // 4. Last step, cutout the object selected by the user
@@ -65,6 +65,9 @@ void test_sobel_feldman(char *filename, Vec2 start_pixel, ProcessingUnit process
     // 3. Third step, apply the Sobel-Feldman operator to detect edges of shapes
     ProcessingUnitHost::sobel_feldman(gray_image->data, gradient_image->data, angle_image, gray_image_dim);
     writePGM("output/sf_gradient_output.pgm", gradient_image);
+    
+    ProcessingUnitHost::generate_edge_color(gradient_image->data, angle_image, edge_color_image->data, rgb_image_dim);
+    writePPM("output/edge_color_output.ppm", edge_color_image);
   }
   
   writePPM("output/cutout_output.ppm", rgb_image);
@@ -105,15 +108,15 @@ void test_canny(char *filename, Vec2 start_pixel, int canny_min,
     // 2. Second step, smooth the image using a Gaussian blur
     // to remove possible noise in the picture
     for (int i = 0; i < 5; i++) {
-      ProcessingUnitDevice::gaussian_blur(gray_image->data, gray_image_dim);
-      cudaDeviceSynchronize();
+      //ProcessingUnitDevice::gaussian_blur(gray_image->data, gray_image_dim);
+      //cudaDeviceSynchronize();
     }
 
     // 3. Third step, apply the Sobel-Feldman operator to detect edges of shapes
     ProcessingUnitDevice::sobel_feldman(gray_image->data, gradient_image->data, angle_image, gray_image_dim);
     writePGM("output/sf_gradient_output.pgm", gradient_image);
 
-    generate_edge_color(gradient_image->data, angle_image, edge_color_image->data, rgb_image_dim);
+    ProcessingUnitDevice::generate_edge_color(gradient_image->data, angle_image, edge_color_image->data, rgb_image_dim);
     writePPM("output/edge_color_output.ppm", edge_color_image);
 
     GrayImage *buffer_gray = createPGM(gradient_image->width, gradient_image->height);
@@ -164,13 +167,16 @@ void test_canny(char *filename, Vec2 start_pixel, int canny_min,
     // 2. Second step, smooth the image using a Gaussian blur
     // to remove possible noise in the picture
     for (int i = 0; i < 5; i++) {
-      ProcessingUnitHost::gaussian_blur(gray_image->data, gray_image_dim);
+      //ProcessingUnitHost::gaussian_blur(gray_image->data, gray_image_dim);
     }
     writePGM("output/blurred_image.pgm", gray_image);
     
     // 3. Third step, apply the Sobel-Feldman operator to detect edges of shapes
     ProcessingUnitHost::sobel_feldman(gray_image->data, gradient_image->data, angle_image, gray_image_dim);
     writePGM("output/sf_gradient_output.pgm", gradient_image);
+    
+    ProcessingUnitHost::generate_edge_color(gradient_image->data, angle_image, edge_color_image->data, rgb_image_dim);
+    writePPM("output/edge_color_output.ppm", edge_color_image);
   }
 
   destroyPPM(rgb_image);

@@ -7,11 +7,11 @@
 
 const int KERNEL_SIZE = 3;
 const float SOBEL_HORIZONTAL_KERNEL[KERNEL_SIZE*KERNEL_SIZE] = { 1, 0,  -1, 
-                                                                        2, 0,  -2, 
-                                                                        1, 0, -1};
+                                                                 2, 0,  -2, 
+                                                                 1, 0, -1};
 const float SOBEL_VERTICAL_KERNEL[KERNEL_SIZE*KERNEL_SIZE] = { 1,  2,  1,
-                                                                      0,  0,  0,
-                                                                     -1, -2, -1}; 
+                                                               0,  0,  0,
+                                                               -1, -2, -1}; 
 /**
  * Applies the Sobel-Feldman operator over a matrix.
  * The picture should have been smoothed and converted to grayscale prior to being passed over the Sobel-Feldman operator. 
@@ -140,7 +140,7 @@ __device__ __host__ float angle_core(Vec2 index, int *horizontal_gradient, int *
 }
 
 
-void generate_edge_color(unsigned char *h_gradient_matrix, float *h_angle_matrix, unsigned char *h_output_image, Dim matrix_dim) {
+void ProcessingUnitDevice::generate_edge_color(unsigned char *h_gradient_matrix, float *h_angle_matrix, unsigned char *h_output_image, Dim matrix_dim) {
   unsigned char *d_gradient_matrix;
   float *d_angle_matrix;
   unsigned char *d_output_image;
@@ -156,7 +156,7 @@ void generate_edge_color(unsigned char *h_gradient_matrix, float *h_angle_matrix
   dim3 threads = dim3(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
   dim3 blocks = dim3(matrix_dim.width/MATRIX_SIZE_PER_BLOCK, matrix_dim.height/MATRIX_SIZE_PER_BLOCK);
   std::cout << "Nombre de blocs lancés: " << blocks.x << " " << blocks.y << std::endl;
-  edge_color<<<blocks, threads>>>(d_gradient_matrix, d_angle_matrix, d_output_image, matrix_dim);
+  edge_color_kernel<<<blocks, threads>>>(d_gradient_matrix, d_angle_matrix, d_output_image, matrix_dim);
 
   cudaMemcpy(h_output_image, d_output_image, 3 * matrix_dim.width * matrix_dim.height * sizeof(unsigned char), cudaMemcpyDeviceToHost);
 
@@ -165,46 +165,60 @@ void generate_edge_color(unsigned char *h_gradient_matrix, float *h_angle_matrix
   cudaFree(d_output_image);
 }
 
-/**
- * Give a color to edges depending on their direction.
- **/
-__global__ void edge_color(unsigned char *gradient_matrix, float *angle_matrix, unsigned char *output_image, Dim image_dim) { 
-  int globalIdxX = threadIdx.x + (blockIdx.x * blockDim.x);
-  int globalIdxY = threadIdx.y + (blockIdx.y * blockDim.y);
-  const int GLOBAL_IDX = globalIdxY * image_dim.width + globalIdxX;
-
-  const float ANGLE = angle_matrix[GLOBAL_IDX] + M_PI_2;
-  
-  if (50 < gradient_matrix[GLOBAL_IDX]) {
-    if (get_color_sobel(ANGLE) == 'Y') {
-      // Horizontal gradient direction : Yellow
-      output_image[3 * (GLOBAL_IDX)] = 255;
-      output_image[3 * (GLOBAL_IDX) + 1] = 255; 
-      output_image[3 * (GLOBAL_IDX) + 2] = 0; 
-    } else if (get_color_sobel(ANGLE) == 'G') {
-      // Top right gradient direction : Green
-      output_image[3 * (GLOBAL_IDX)] = 0; 
-      output_image[3 * (GLOBAL_IDX) + 1] = 255; 
-      output_image[3 * (GLOBAL_IDX) + 2] = 0; 
-    } else if (get_color_sobel(ANGLE) == 'R')  {
-      // Top left gradient direction : Red
-      output_image[3 * (GLOBAL_IDX)] = 255; 
-      output_image[3 * (GLOBAL_IDX) + 1] = 0; 
-      output_image[3 * (GLOBAL_IDX) + 2] = 0; 
-    } else {
-      // Vertical gradient direction : Blue
-      output_image[3 * (GLOBAL_IDX)] = 0; 
-      output_image[3 * (GLOBAL_IDX) + 1] = 0; 
-      output_image[3 * (GLOBAL_IDX) + 2] = 255; 
+void ProcessingUnitHost::generate_edge_color(unsigned char *gradient_matrix, float *angle_matrix, unsigned char *output_image, Dim matrix_dim) {
+  Vec2 index;
+  for (index.y = 0; index.y < matrix_dim.height; index.y++) {
+    for (index.x = 0; index.x < matrix_dim.width; index.x++) {
+      edge_color_core(index, gradient_matrix, angle_matrix, output_image, matrix_dim);
     }
-  } else {
-    output_image[3 * (GLOBAL_IDX)] = 0; 
-    output_image[3 * (GLOBAL_IDX) + 1] = 0; 
-    output_image[3 * (GLOBAL_IDX) + 2] = 0; 
   }
 }
 
-__device__ char get_color_sobel(float angle) {
+/**
+ * Give a color to edges depending on their direction.
+ **/
+__global__ void edge_color_kernel(unsigned char *gradient_matrix, float *angle_matrix, unsigned char *output_image, Dim image_dim) { 
+  Vec2 index;
+  index.x = threadIdx.x + (blockIdx.x * blockDim.x);
+  index.y = threadIdx.y + (blockIdx.y * blockDim.y);
+  
+  edge_color_core(index, gradient_matrix, angle_matrix, output_image, image_dim);
+}
+
+__device__ __host__ void edge_color_core(Vec2 index, unsigned char *gradient_matrix, float *angle_matrix, unsigned char *output_image, Dim image_dim) { 
+  const float ANGLE = angle_matrix[index.y*image_dim.width + index.x] + M_PI_2;
+  const int INT_INDEX = index.y*image_dim.width + index.x;
+  
+  if (50 < gradient_matrix[INT_INDEX]) {
+    if (get_color_sobel(ANGLE) == 'Y') {
+      // Horizontal gradient direction : Yellow
+      output_image[3 * (INT_INDEX)] = 255;
+      output_image[3 * (INT_INDEX) + 1] = 255; 
+      output_image[3 * (INT_INDEX) + 2] = 0; 
+    } else if (get_color_sobel(ANGLE) == 'G') {
+      // Top right gradient direction : Green
+      output_image[3 * (INT_INDEX)] = 0; 
+      output_image[3 * (INT_INDEX) + 1] = 255; 
+      output_image[3 * (INT_INDEX) + 2] = 0; 
+    } else if (get_color_sobel(ANGLE) == 'R')  {
+      // Top left gradient direction : Red
+      output_image[3 * (INT_INDEX)] = 255; 
+      output_image[3 * (INT_INDEX) + 1] = 0; 
+      output_image[3 * (INT_INDEX) + 2] = 0; 
+    } else {
+      // Vertical gradient direction : Blue
+      output_image[3 * (INT_INDEX)] = 0; 
+      output_image[3 * (INT_INDEX) + 1] = 0; 
+      output_image[3 * (INT_INDEX) + 2] = 255; 
+    }
+  } else {
+    output_image[3 * (INT_INDEX)] = 0; 
+    output_image[3 * (INT_INDEX) + 1] = 0; 
+    output_image[3 * (INT_INDEX) + 2] = 0; 
+  }
+}
+
+__device__ __host__ char get_color_sobel(float angle) {
   char color = ' ';
 
   if (angle < M_PI / 8.0 || (M_PI / 8.0) * 7 < angle) {
