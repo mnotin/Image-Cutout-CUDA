@@ -1,4 +1,5 @@
 #include <iostream>
+#include <chrono>
 
 #include "main.hpp"
 #include "tests.hpp"
@@ -77,11 +78,15 @@ int main(int argc, char **argv) {
     }
   }
   
+  std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
   if (edge_detection == EdgeDetection::SobelFeldman) {
     test_sobel_feldman(filename, start_pixel, processing_unit);
   } else if (edge_detection == EdgeDetection::Canny) {
     test_canny(filename, start_pixel, canny_min_val, canny_max_val, canny_sample_offset, processing_unit);
   }
+  std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+  
+  std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::seconds>(end - begin).count() << "s" << std::endl;
 
   std::cout << " ===" << std::endl;
   cudaDeviceSynchronize();
