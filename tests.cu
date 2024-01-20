@@ -50,7 +50,7 @@ void test_sobel_feldman(char *filename, Vec2 start_pixel, ProcessingUnit process
     writePPM("output/edge_color_output.ppm", edge_color_image);
 
     // 4. Last step, cutout the object selected by the user
-    cutout(rgb_image->data, gradient_image->data, gray_image_dim, start_pixel, 0);
+    ProcessingUnitDevice::cutout(rgb_image->data, gradient_image->data, gray_image_dim, start_pixel, 0);
   } else if (processing_unit == ProcessingUnit::Host) {
     // CPU
     // 1. First step, convert the picture into grayscale
@@ -68,6 +68,9 @@ void test_sobel_feldman(char *filename, Vec2 start_pixel, ProcessingUnit process
     
     ProcessingUnitHost::generate_edge_color(gradient_image->data, angle_image, edge_color_image->data, rgb_image_dim);
     writePPM("output/edge_color_output.ppm", edge_color_image);
+    
+    // 4. Last step, cutout the object selected by the user
+    ProcessingUnitHost::cutout(rgb_image->data, gradient_image->data, gray_image_dim, start_pixel, 0);
   }
   
   writePPM("output/cutout_output.ppm", rgb_image);
@@ -108,8 +111,8 @@ void test_canny(char *filename, Vec2 start_pixel, int canny_min,
     // 2. Second step, smooth the image using a Gaussian blur
     // to remove possible noise in the picture
     for (int i = 0; i < 5; i++) {
-      //ProcessingUnitDevice::gaussian_blur(gray_image->data, gray_image_dim);
-      //cudaDeviceSynchronize();
+      ProcessingUnitDevice::gaussian_blur(gray_image->data, gray_image_dim);
+      cudaDeviceSynchronize();
     }
 
     // 3. Third step, apply the Sobel-Feldman operator to detect edges of shapes
@@ -141,7 +144,7 @@ void test_canny(char *filename, Vec2 start_pixel, int canny_min,
     
       // 4. Last step, cutout the object selected by the user
       memcpy(buffer_rgb->data, rgb_image->data, sizeof(unsigned char) * gradient_image->width * gradient_image->height * 3);
-      cutout(buffer_rgb->data, buffer_gray->data, gray_image_dim, start_pixel, 0);
+      ProcessingUnitDevice::cutout(buffer_rgb->data, buffer_gray->data, gray_image_dim, start_pixel, 0);
 
       const char *prefix_rgb = "output/cutout_output";
       char number_rgb[4] = "000";
@@ -167,7 +170,7 @@ void test_canny(char *filename, Vec2 start_pixel, int canny_min,
     // 2. Second step, smooth the image using a Gaussian blur
     // to remove possible noise in the picture
     for (int i = 0; i < 5; i++) {
-      //ProcessingUnitHost::gaussian_blur(gray_image->data, gray_image_dim);
+      ProcessingUnitHost::gaussian_blur(gray_image->data, gray_image_dim);
     }
     writePGM("output/blurred_image.pgm", gray_image);
     
@@ -177,6 +180,46 @@ void test_canny(char *filename, Vec2 start_pixel, int canny_min,
     
     ProcessingUnitHost::generate_edge_color(gradient_image->data, angle_image, edge_color_image->data, rgb_image_dim);
     writePPM("output/edge_color_output.ppm", edge_color_image);
+    
+    GrayImage *buffer_gray = createPGM(gradient_image->width, gradient_image->height);
+    RGBImage *buffer_rgb = createPPM(gradient_image->width, gradient_image->height);
+    int file_index = 0;
+    for (int i = canny_min; i <= canny_max && canny_sample_offset; i += canny_sample_offset) {
+      memcpy(buffer_gray->data, gradient_image->data, sizeof(unsigned char) * gradient_image->width * gradient_image->height);
+      canny(buffer_gray->data, angle_image, gray_image_dim, i, canny_max);
+
+      // Create the name of the output file
+      const char *prefix_gray = "output/canny_output";
+      char number_gray[4] = "000";
+      sprintf(number_gray, "%d", file_index);
+      char filename_gray[strlen(prefix_gray) + 3 + 4 + 1]; // prefix + number + .ppm + \0
+      bzero(filename_gray, strlen(prefix_gray) + 3 + 4 + 1);
+      strcpy(filename_gray, prefix_gray);
+      strcpy(filename_gray + strlen(prefix_gray), number_gray);
+      strcpy(filename_gray + strlen(filename_gray), ".ppm");
+
+      //printf("%s\n", filename_gray);
+      //writePGM(filename, buffer);
+    
+      // 4. Last step, cutout the object selected by the user
+      memcpy(buffer_rgb->data, rgb_image->data, sizeof(unsigned char) * gradient_image->width * gradient_image->height * 3);
+      ProcessingUnitHost::cutout(buffer_rgb->data, buffer_gray->data, gray_image_dim, start_pixel, 0);
+
+      const char *prefix_rgb = "output/cutout_output";
+      char number_rgb[4] = "000";
+      sprintf(number_rgb, "%d", file_index);
+      char filename_rgb[strlen(prefix_rgb) + 3 + 4 + 1]; // prefix + number + .ppm + \0
+      bzero(filename_rgb, strlen(prefix_rgb) + 3 + 4 + 1);
+      strcpy(filename_rgb, prefix_rgb);
+      strcpy(filename_rgb + strlen(prefix_rgb), number_rgb);
+      strcpy(filename_rgb + strlen(filename_rgb), ".ppm");
+      printf("%s\n", filename_rgb);
+      writePPM(filename_rgb, buffer_rgb);
+  
+      file_index += 1;
+    }
+    destroyPGM(buffer_gray);
+    destroyPPM(buffer_rgb);
   }
 
   destroyPPM(rgb_image);
