@@ -127,7 +127,7 @@ void test_canny(char *filename, Vec2 start_pixel, int canny_min,
     int file_index = 0;
     for (int i = canny_min; i <= canny_max && canny_sample_offset; i += canny_sample_offset) {
       memcpy(buffer_gray->data, gradient_image->data, sizeof(unsigned char) * gradient_image->width * gradient_image->height);
-      canny(buffer_gray->data, angle_image, gray_image_dim, i, canny_max);
+      ProcessingUnitDevice::canny(buffer_gray->data, angle_image, gray_image_dim, i, canny_max);
 
       // Create the name of the output file
       const char *prefix_gray = "output/canny_output";
@@ -186,7 +186,7 @@ void test_canny(char *filename, Vec2 start_pixel, int canny_min,
     int file_index = 0;
     for (int i = canny_min; i <= canny_max && canny_sample_offset; i += canny_sample_offset) {
       memcpy(buffer_gray->data, gradient_image->data, sizeof(unsigned char) * gradient_image->width * gradient_image->height);
-      canny(buffer_gray->data, angle_image, gray_image_dim, i, canny_max);
+      ProcessingUnitHost::canny(buffer_gray->data, angle_image, gray_image_dim, i, canny_max);
 
       // Create the name of the output file
       const char *prefix_gray = "output/canny_output";
