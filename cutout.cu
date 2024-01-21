@@ -1,5 +1,6 @@
 #include <math.h>
 #include <unistd.h>
+#include <iostream>
 
 #include "cutout.hpp"
 #include "main.hpp"
@@ -35,11 +36,14 @@ void ProcessingUnitDevice::cutout(unsigned char *h_rgb_image, unsigned char *h_e
   draw_edges_on_cutout_matrix_kernel<<<blocks, threads>>>(d_edge_matrix, d_cutout_matrix, matrix_dim, start_pixel, threshold);
 
   while (h_done == 0) {
-    h_done = 1;
+    h_done = 1; // Let's assume that the process is done
     cudaMemcpy(d_done, &h_done, sizeof(int), cudaMemcpyHostToDevice);
     cutout_algorithm_kernel<<<blocks, threads>>>(d_cutout_matrix, matrix_dim, d_done);
-    cudaMemcpy(&h_done, d_done, sizeof(int), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
+    
+    transfer_edges_between_blocks_kernel<<<blocks, threads>>>(d_cutout_matrix, matrix_dim, d_done);
+    cudaDeviceSynchronize();
+    cudaMemcpy(&h_done, d_done, sizeof(int), cudaMemcpyDeviceToHost);
   }
   apply_cutout_kernel<<<blocks, threads>>>(d_cutout_matrix, d_rgb_image, matrix_dim, start_pixel);
 
@@ -122,18 +126,46 @@ __global__ void cutout_algorithm_kernel(unsigned char *cutout_matrix, Dim matrix
   local_index.x = threadIdx.x;
   local_index.y = threadIdx.y;
 
+  Dim shared_matrix_dim;
+  shared_matrix_dim.width = MATRIX_SIZE_PER_BLOCK;
+  shared_matrix_dim.height = MATRIX_SIZE_PER_BLOCK;
+
   __shared__ int shared_done;
+  __shared__ int shared_loop_done;
+  __shared__ unsigned char shared_cutout_matrix[MATRIX_SIZE_PER_BLOCK*MATRIX_SIZE_PER_BLOCK];
+
+  shared_cutout_matrix[local_index.y*MATRIX_SIZE_PER_BLOCK + local_index.x] = cutout_matrix[global_index.y*matrix_dim.width + global_index.x];
 
   if (local_index.x == 0 && local_index.y == 0) {
-    shared_done = 1; // Initialize the variable of the block
+    shared_done = 1;
+    shared_loop_done = 0;
+  }
+
+  __syncthreads();
+  
+  while (shared_loop_done == 0) {
+    if (local_index.x == 0 && local_index.y == 0) {
+      shared_loop_done = 1;
+    }
+    
+    __syncthreads();
+
+    cutout_algorithm_core(local_index, shared_cutout_matrix, shared_matrix_dim, &shared_loop_done);
+
+    __syncthreads();
+
+    if (local_index.x == 0 && local_index.y == 0 && shared_loop_done == 0) {
+      // At least one block had to update a pixel so we will need
+      // to rerun them all at least once
+      shared_done = 0;
+    }
   }
   
+  // The first local thread has to wait for all the threads of the block to finish
   __syncthreads();
-
-  cutout_algorithm_core(global_index, cutout_matrix, matrix_dim, &shared_done);
-
-  // The first local thread has to wait for all the threads of the bloc to finish
-  __syncthreads();
+  
+  cutout_matrix[global_index.y*matrix_dim.width + global_index.x] =
+    shared_cutout_matrix[local_index.y*MATRIX_SIZE_PER_BLOCK + local_index.x];
  
   if (local_index.x == 0 && local_index.y == 0 && shared_done == 0) {
     *done = 0;
@@ -142,8 +174,10 @@ __global__ void cutout_algorithm_kernel(unsigned char *cutout_matrix, Dim matrix
 
 __device__ __host__ void cutout_algorithm_core(Vec2 index, unsigned char *cutout_matrix, Dim matrix_dim, int *done) {
   const int INT_INDEX = index.y*matrix_dim.width + index.x;
+
   if (cutout_matrix[INT_INDEX] == 'A') {
     // Active pixel
+
     if (0 < index.x && cutout_matrix[INT_INDEX-1] == 'D') {
       cutout_matrix[INT_INDEX-1] = 'A';
       *done = 0;
@@ -165,6 +199,51 @@ __device__ __host__ void cutout_algorithm_core(Vec2 index, unsigned char *cutout
     }
       
     cutout_matrix[INT_INDEX] = 'M'; // At the end of the loop, current pixel is marked
+  }
+}
+
+__global__ void transfer_edges_between_blocks_kernel(unsigned char *cutout_matrix, Dim matrix_dim, int *done) {
+  Vec2 global_index;
+  Vec2 local_index;
+  global_index.x = threadIdx.x + (blockIdx.x * blockDim.x);
+  global_index.y = threadIdx.y + (blockIdx.y * blockDim.y);
+  local_index.x = threadIdx.x;
+  local_index.y = threadIdx.y;
+
+  const int GLOBAL_INT_INDEX = global_index.y*matrix_dim.width + global_index.x;
+
+  if (cutout_matrix[GLOBAL_INT_INDEX] == 'M') {
+    // Top
+    if (local_index.y == 0 && 0 < global_index.y) {
+      if (cutout_matrix[GLOBAL_INT_INDEX - matrix_dim.width] == 'D') {
+        cutout_matrix[GLOBAL_INT_INDEX - matrix_dim.width] = 'A';
+        *done = 0;
+      }
+    }
+
+    // Bottom 
+    if (local_index.y == MATRIX_SIZE_PER_BLOCK-1 && global_index.y < matrix_dim.height-1) {
+      if (cutout_matrix[GLOBAL_INT_INDEX + matrix_dim.width] == 'D') {
+        cutout_matrix[GLOBAL_INT_INDEX + matrix_dim.width] = 'A';
+        *done = 0;
+      }
+    }
+
+    // Left
+    if (local_index.x == 0 && 0 < global_index.x) {
+      if (cutout_matrix[GLOBAL_INT_INDEX - 1] == 'D') {
+        cutout_matrix[GLOBAL_INT_INDEX - 1] = 'A';
+        *done = 0;
+      }
+    }
+
+    // Right 
+    if (local_index.x == MATRIX_SIZE_PER_BLOCK-1 && global_index.x < matrix_dim.width-1) {
+      if (cutout_matrix[GLOBAL_INT_INDEX + 1] == 'D') {
+        cutout_matrix[GLOBAL_INT_INDEX + 1] = 'A';
+        *done = 0;
+      }
+    }
   }
 }
 

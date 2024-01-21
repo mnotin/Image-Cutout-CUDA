@@ -90,7 +90,7 @@ void test_canny(char *filename, Vec2 start_pixel, int canny_min,
   GrayImage *gradient_image = createPGM(rgb_image->width, rgb_image->height);
   float *angle_image = new float[rgb_image->width * rgb_image->height];
   RGBImage *edge_color_image = readPPM(filename);
-  
+
   Dim rgb_image_dim;
   rgb_image_dim.width = rgb_image->width;
   rgb_image_dim.height = rgb_image->height;

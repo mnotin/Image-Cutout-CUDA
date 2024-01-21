@@ -9,6 +9,8 @@ __device__ __host__ unsigned char draw_edges_on_cutout_matrix_core(Vec2 index, u
 __global__ void cutout_algorithm_kernel(unsigned char *cutout_matrix, Dim matrix_dim, int *done);
 __device__ __host__ void cutout_algorithm_core(Vec2 index, unsigned char *cutout_matrix, Dim matrix_dim, int *done);
 
+__global__ void transfer_edges_between_blocks_kernel(unsigned char *cutout_matrix, Dim matrix_dim, int *done);
+
 __global__ void apply_cutout_kernel(unsigned char *cutout_matrix, unsigned char *output_image, Dim image_dim, Vec2 start_pixel);
 __device__ __host__ void apply_cutout_core(Vec2 index, unsigned char *cutout_matrix, unsigned char *output_image, Dim image_dim, Vec2 start_pixel);
 
