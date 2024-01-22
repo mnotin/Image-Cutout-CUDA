@@ -12,10 +12,10 @@ void ProcessingUnitDevice::canny(unsigned char *h_gradient_matrix, float *h_angl
   unsigned char *d_ht_matrix;
   int *d_done;
 
-  cudaMalloc((void **) &d_gradient_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
-  cudaMalloc((void **) &d_angle_matrix, matrix_dim.width * matrix_dim.height * sizeof(float));
-  cudaMalloc((void **) &d_ht_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
-  cudaMalloc((void **) &d_done, sizeof(int));
+  cudaMalloc(&d_gradient_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
+  cudaMalloc(&d_angle_matrix, matrix_dim.width * matrix_dim.height * sizeof(float));
+  cudaMalloc(&d_ht_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
+  cudaMalloc(&d_done, sizeof(int));
   
   cudaMemcpy(d_gradient_matrix, h_gradient_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char), cudaMemcpyHostToDevice);
   cudaMemcpy(d_angle_matrix, h_angle_matrix, matrix_dim.width * matrix_dim.height * sizeof(float), cudaMemcpyHostToDevice);

@@ -33,20 +33,22 @@ __global__ void convolution_kernel(unsigned char *input_matrix, int *output_matr
   if (local_index.y == 0) {
     // First line
     if (global_index.y == 0) {
-      shared_matrix[current_shared_mat_idx - MATRIX_SIZE_PER_BLOCK] = input_matrix[current_mat_idx];
+      shared_matrix[current_shared_mat_idx - shared_matrix_dim.width] = input_matrix[current_mat_idx];
     } else {
-      shared_matrix[current_shared_mat_idx - MATRIX_SIZE_PER_BLOCK] =
+      shared_matrix[current_shared_mat_idx - shared_matrix_dim.width] =
         input_matrix[current_mat_idx - matrix_dim.width];
     }
   } else if (local_index.y == MATRIX_SIZE_PER_BLOCK-1) {
     // Last line
     if (global_index.y == matrix_dim.height-1) {
-      shared_matrix[current_shared_mat_idx + MATRIX_SIZE_PER_BLOCK] = input_matrix[current_mat_idx];
+      shared_matrix[current_shared_mat_idx + shared_matrix_dim.width] = input_matrix[current_mat_idx];
     } else {
-      shared_matrix[current_shared_mat_idx + MATRIX_SIZE_PER_BLOCK] =
+      shared_matrix[current_shared_mat_idx + shared_matrix_dim.width] =
         input_matrix[current_mat_idx + matrix_dim.width];
     }
-  } else if (local_index.x == 0) {
+  }
+  
+  if (local_index.x == 0) {
     // Left side
     if (global_index.x == 0) {
       shared_matrix[current_shared_mat_idx - 1] = input_matrix[current_mat_idx];
@@ -67,29 +69,45 @@ __global__ void convolution_kernel(unsigned char *input_matrix, int *output_matr
   // Handle corners of the block
   if (local_index.x == 0 && local_index.y == 0) {
     // Top left
-    if (global_index.x == 0 || global_index.y == 0) {
+    if (global_index.x == 0 && global_index.y == 0) {
       shared_matrix[0] = input_matrix[current_mat_idx];
+    } else if (global_index.x == 0) {
+      shared_matrix[0] = input_matrix[current_mat_idx - matrix_dim.width];
+    } else if (global_index.y == 0) {
+      shared_matrix[0] = input_matrix[current_mat_idx - 1];
     } else {
       shared_matrix[0] = input_matrix[current_mat_idx - matrix_dim.width - 1];
     }
   } else if (local_index.x == MATRIX_SIZE_PER_BLOCK-1 && local_index.y == 0) {
     // Top right
-    if (global_index.x == matrix_dim.width-1 || global_index.y == 0) {
+    if (global_index.x == matrix_dim.width-1 && global_index.y == 0) {
       shared_matrix[MATRIX_SIZE_PER_BLOCK+1] = input_matrix[current_mat_idx];
+    } else if (global_index.x == matrix_dim.width-1) {
+      shared_matrix[MATRIX_SIZE_PER_BLOCK+1] = input_matrix[current_mat_idx - matrix_dim.width];
+    } else if (global_index.y == 0) {
+      shared_matrix[MATRIX_SIZE_PER_BLOCK+1] = input_matrix[current_mat_idx + 1];
     } else {
       shared_matrix[MATRIX_SIZE_PER_BLOCK+1] = input_matrix[current_mat_idx - matrix_dim.width + 1];
     }
   } else if (local_index.x == 0 && local_index.y == MATRIX_SIZE_PER_BLOCK-1) {
     // Bottom left
-    if (global_index.x == 0 || global_index.y == matrix_dim.height-1) {
+    if (global_index.x == 0 && global_index.y == matrix_dim.height-1) {
       shared_matrix[current_shared_mat_idx + shared_matrix_dim.width - 1] = input_matrix[current_mat_idx];
+    } else if (global_index.x == 0) {
+      shared_matrix[current_shared_mat_idx + shared_matrix_dim.width - 1] = input_matrix[current_mat_idx + matrix_dim.width];
+    } else if (global_index.y == matrix_dim.height-1) {
+      shared_matrix[current_shared_mat_idx + shared_matrix_dim.width - 1] = input_matrix[current_mat_idx - 1];
     } else {
       shared_matrix[current_shared_mat_idx + shared_matrix_dim.width - 1] = input_matrix[current_mat_idx + matrix_dim.width - 1];
     }
   } else if (local_index.x == MATRIX_SIZE_PER_BLOCK-1 && local_index.y == MATRIX_SIZE_PER_BLOCK-1) {
     // Bottom right
-    if (global_index.x == matrix_dim.width-1 || global_index.y == matrix_dim.height-1) {
+    if (global_index.x == matrix_dim.width-1 && global_index.y == matrix_dim.height-1) {
       shared_matrix[current_shared_mat_idx + shared_matrix_dim.width + 1] = input_matrix[current_mat_idx];
+    } else if (global_index.x == matrix_dim.width-1) {
+      shared_matrix[current_shared_mat_idx + shared_matrix_dim.width + 1] = input_matrix[current_mat_idx + matrix_dim.width];
+    } else if (global_index.y == matrix_dim.height-1) {
+      shared_matrix[current_shared_mat_idx + shared_matrix_dim.width + 1] = input_matrix[current_mat_idx + 1];
     } else {
       shared_matrix[current_shared_mat_idx + shared_matrix_dim.width + 1] = input_matrix[current_mat_idx + matrix_dim.width + 1];
     }

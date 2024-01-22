@@ -11,16 +11,16 @@
 void ProcessingUnitDevice::gaussian_blur(unsigned char *h_matrix, Dim matrix_dim) {
   const int KERNEL_WIDTH = 3;
   float gaussian_blur_kernel[KERNEL_WIDTH*KERNEL_WIDTH] = {1/16.0, 2/16.0, 1/16.0, 
-                                                         2/16.0, 4/16.0, 2/16.0, 
-                                                         1/16.0, 2/16.0, 1/16.0};
+                                                           2/16.0, 4/16.0, 2/16.0, 
+                                                           1/16.0, 2/16.0, 1/16.0};
   int h_int_matrix[matrix_dim.width*matrix_dim.height];
  
   unsigned char *d_input_matrix;
   int *d_output_matrix;
   float *d_kernel;
-  cudaMalloc((void **) &d_input_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
-  cudaMalloc((void **) &d_output_matrix, matrix_dim.width * matrix_dim.height * sizeof(int));
-  cudaMalloc((void **) &d_kernel, KERNEL_WIDTH*KERNEL_WIDTH * sizeof(float));
+  cudaMalloc(&d_input_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
+  cudaMalloc(&d_output_matrix, matrix_dim.width * matrix_dim.height * sizeof(int));
+  cudaMalloc(&d_kernel, KERNEL_WIDTH*KERNEL_WIDTH * sizeof(float));
 
   cudaMemcpy(d_input_matrix, h_matrix, matrix_dim.width*matrix_dim.height*sizeof(unsigned char), cudaMemcpyHostToDevice);
   cudaMemcpy(d_kernel, gaussian_blur_kernel, KERNEL_WIDTH*KERNEL_WIDTH * sizeof(int), cudaMemcpyHostToDevice);

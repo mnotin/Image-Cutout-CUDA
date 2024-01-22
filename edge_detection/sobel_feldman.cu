@@ -27,12 +27,12 @@ void ProcessingUnitDevice::sobel_feldman(unsigned char *h_input_matrix, unsigned
   float *d_angle_matrix;
   float *d_kernel;
 
-  cudaMalloc((void **) &d_input_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
-  cudaMalloc((void **) &d_gradient_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
-  cudaMalloc((void **) &d_horizontal_gradient, matrix_dim.width * matrix_dim.height * sizeof(int));
-  cudaMalloc((void **) &d_vertical_gradient, matrix_dim.width * matrix_dim.height * sizeof(int));
-  cudaMalloc((void **) &d_angle_matrix, matrix_dim.width * matrix_dim.height * sizeof(float));
-  cudaMalloc((void **) &d_kernel, KERNEL_SIZE*KERNEL_SIZE * sizeof(float));
+  cudaMalloc(&d_input_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
+  cudaMalloc(&d_gradient_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
+  cudaMalloc(&d_horizontal_gradient, matrix_dim.width * matrix_dim.height * sizeof(int));
+  cudaMalloc(&d_vertical_gradient, matrix_dim.width * matrix_dim.height * sizeof(int));
+  cudaMalloc(&d_angle_matrix, matrix_dim.width * matrix_dim.height * sizeof(float));
+  cudaMalloc(&d_kernel, KERNEL_SIZE*KERNEL_SIZE * sizeof(float));
 
   cudaMemcpy(d_input_matrix, h_input_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char), cudaMemcpyHostToDevice);
 
@@ -145,9 +145,9 @@ void ProcessingUnitDevice::generate_edge_color(unsigned char *h_gradient_matrix,
   float *d_angle_matrix;
   unsigned char *d_output_image;
 
-  cudaMalloc((void **) &d_gradient_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
-  cudaMalloc((void **) &d_angle_matrix, matrix_dim.width * matrix_dim.height * sizeof(float));
-  cudaMalloc((void **) &d_output_image, 3 * matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
+  cudaMalloc(&d_gradient_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
+  cudaMalloc(&d_angle_matrix, matrix_dim.width * matrix_dim.height * sizeof(float));
+  cudaMalloc(&d_output_image, 3 * matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
 
   cudaMemcpy(d_gradient_matrix, h_gradient_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char), cudaMemcpyHostToDevice);
   cudaMemcpy(d_angle_matrix, h_angle_matrix, matrix_dim.width * matrix_dim.height * sizeof(float), cudaMemcpyHostToDevice);

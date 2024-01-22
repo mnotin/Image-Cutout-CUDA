@@ -114,6 +114,7 @@ void test_canny(char *filename, Vec2 start_pixel, int canny_min,
       ProcessingUnitDevice::gaussian_blur(gray_image->data, gray_image_dim);
       cudaDeviceSynchronize();
     }
+    writePGM("output/blurred_image_output.pgm", gray_image);
     
     // 3. Third step, apply the Sobel-Feldman operator to detect edges of shapes
     ProcessingUnitDevice::sobel_feldman(gray_image->data, gradient_image->data, angle_image, gray_image_dim);

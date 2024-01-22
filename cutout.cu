@@ -20,10 +20,10 @@ void ProcessingUnitDevice::cutout(unsigned char *h_rgb_image, unsigned char *h_e
   unsigned char *d_cutout_matrix;
   int *d_done;
 
-  cudaMalloc((void **) &d_rgb_image, 3 * matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
-  cudaMalloc((void **) &d_edge_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
-  cudaMalloc((void **) &d_cutout_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
-  cudaMalloc((void **) &d_done, sizeof(int));
+  cudaMalloc(&d_rgb_image, 3 * matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
+  cudaMalloc(&d_edge_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
+  cudaMalloc(&d_cutout_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
+  cudaMalloc(&d_done, sizeof(int));
 
   cudaMemcpy(d_rgb_image, h_rgb_image, 3 * matrix_dim.width * matrix_dim.height * sizeof(unsigned char), cudaMemcpyHostToDevice);
   cudaMemcpy(d_edge_matrix, h_edge_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char), cudaMemcpyHostToDevice);

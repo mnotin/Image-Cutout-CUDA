@@ -33,8 +33,8 @@ void ProcessingUnitDevice::rgb_to_gray(RGBImage *h_rgb_image, GrayImage *h_gray_
   unsigned char *d_rgb_image;
   unsigned char *d_gray_image;
 
-  cudaMalloc((void **) &d_rgb_image, sizeof(unsigned char) * (3 * h_rgb_image->width * h_rgb_image->height));
-  cudaMalloc((void **) &d_gray_image, sizeof(unsigned char) * (h_gray_image->width * h_gray_image->height)); 
+  cudaMalloc(&d_rgb_image, sizeof(unsigned char) * (3 * h_rgb_image->width * h_rgb_image->height));
+  cudaMalloc(&d_gray_image, sizeof(unsigned char) * (h_gray_image->width * h_gray_image->height)); 
 
   // Copying host memory to device
   cudaMemcpy(d_rgb_image, h_rgb_image->data, 3 * h_rgb_image->width * h_rgb_image->height, cudaMemcpyHostToDevice);
