@@ -11,9 +11,12 @@ __global__ void convolution_kernel(unsigned char *input_matrix, int *output_matr
   local_index.x = threadIdx.x;
   local_index.y = threadIdx.y;
   
-  int current_matrix_index = global_index.y*matrix_dim.width + global_index.x;
-  int current_shared_matrix_index = MATRIX_SIZE_PER_BLOCK+2+1+ local_index.y*(MATRIX_SIZE_PER_BLOCK+2) + local_index.x;
+  int current_mat_idx = global_index.y*matrix_dim.width + global_index.x;
+  int current_shared_mat_idx = MATRIX_SIZE_PER_BLOCK+2+1+ local_index.y*(MATRIX_SIZE_PER_BLOCK+2) + local_index.x;
 
+  Dim shared_matrix_dim;
+  shared_matrix_dim.width = MATRIX_SIZE_PER_BLOCK+2;
+  shared_matrix_dim.height = MATRIX_SIZE_PER_BLOCK+2;
   __shared__ unsigned char shared_matrix[(MATRIX_SIZE_PER_BLOCK+2)*(MATRIX_SIZE_PER_BLOCK+2)];
 
   /*
@@ -24,52 +27,77 @@ __global__ void convolution_kernel(unsigned char *input_matrix, int *output_matr
    * x o o o o x
    * x x x x x x
    */
-  shared_matrix[current_shared_matrix_index] = input_matrix[current_matrix_index];
+  shared_matrix[current_shared_mat_idx] = input_matrix[current_mat_idx];
 
-  // Handle the borders of each block
-  if (local_index.x == 0 && local_index.y == 0) {
-    // Fill the edges
-    for (int i = 0; i < MATRIX_SIZE_PER_BLOCK+2; i++) {
-      // First line
-      int first_line_offset = -1;
-      if (0 == global_index.y) {
-        first_line_offset = 0;
-      }
-      shared_matrix[i] = input_matrix[(global_index.y+first_line_offset)*matrix_dim.width + global_index.x + i - 1];
-    
-      // Last line
-      int last_line_offset = 0;
-      if (global_index.y+MATRIX_SIZE_PER_BLOCK == matrix_dim.height) {
-        last_line_offset = -1;
-      }
-      shared_matrix[(MATRIX_SIZE_PER_BLOCK+2)*(MATRIX_SIZE_PER_BLOCK+1)+i] =
-        input_matrix[(global_index.y+MATRIX_SIZE_PER_BLOCK+last_line_offset)*matrix_dim.width + global_index.x + i - 1];
+  // Handle borders of the block
+  if (local_index.y == 0) {
+    // First line
+    if (global_index.y == 0) {
+      shared_matrix[current_shared_mat_idx - MATRIX_SIZE_PER_BLOCK] = input_matrix[current_mat_idx];
+    } else {
+      shared_matrix[current_shared_mat_idx - MATRIX_SIZE_PER_BLOCK] =
+        input_matrix[current_mat_idx - matrix_dim.width];
     }
-
-    for (int i = 0; i < MATRIX_SIZE_PER_BLOCK; i++) {
-      // Left side
-      int left_side_offset = -1;
-      if (0 == global_index.x) {
-        left_side_offset = 0;
-      }
-      shared_matrix[MATRIX_SIZE_PER_BLOCK+2 + i*(MATRIX_SIZE_PER_BLOCK+2)] = 
-        input_matrix[(global_index.y+i)*matrix_dim.width + global_index.x + left_side_offset];
-
-      // Right side
-      int right_side_offset = 0;
-      if (global_index.x+MATRIX_SIZE_PER_BLOCK == matrix_dim.width) {
-        right_side_offset = -1;
-      }
-      shared_matrix[MATRIX_SIZE_PER_BLOCK+2 + (i+1)*(MATRIX_SIZE_PER_BLOCK+2) - 1] =
-        input_matrix[(global_index.y+i)*matrix_dim.width + global_index.x+MATRIX_SIZE_PER_BLOCK + right_side_offset];
+  } else if (local_index.y == MATRIX_SIZE_PER_BLOCK-1) {
+    // Last line
+    if (global_index.y == matrix_dim.height-1) {
+      shared_matrix[current_shared_mat_idx + MATRIX_SIZE_PER_BLOCK] = input_matrix[current_mat_idx];
+    } else {
+      shared_matrix[current_shared_mat_idx + MATRIX_SIZE_PER_BLOCK] =
+        input_matrix[current_mat_idx + matrix_dim.width];
+    }
+  } else if (local_index.x == 0) {
+    // Left side
+    if (global_index.x == 0) {
+      shared_matrix[current_shared_mat_idx - 1] = input_matrix[current_mat_idx];
+    } else {
+      shared_matrix[current_shared_mat_idx - 1] =
+        input_matrix[current_mat_idx - 1];
+    }
+  } else if (local_index.x == MATRIX_SIZE_PER_BLOCK-1) {
+    // Right side
+    if (global_index.x == matrix_dim.width-1) {
+      shared_matrix[current_shared_mat_idx + 1] = input_matrix[current_mat_idx];
+    } else {
+      shared_matrix[current_shared_mat_idx + 1] =
+        input_matrix[current_mat_idx + 1];
     }
   }
+
+  // Handle corners of the block
+  if (local_index.x == 0 && local_index.y == 0) {
+    // Top left
+    if (global_index.x == 0 || global_index.y == 0) {
+      shared_matrix[0] = input_matrix[current_mat_idx];
+    } else {
+      shared_matrix[0] = input_matrix[current_mat_idx - matrix_dim.width - 1];
+    }
+  } else if (local_index.x == MATRIX_SIZE_PER_BLOCK-1 && local_index.y == 0) {
+    // Top right
+    if (global_index.x == matrix_dim.width-1 || global_index.y == 0) {
+      shared_matrix[MATRIX_SIZE_PER_BLOCK+1] = input_matrix[current_mat_idx];
+    } else {
+      shared_matrix[MATRIX_SIZE_PER_BLOCK+1] = input_matrix[current_mat_idx - matrix_dim.width + 1];
+    }
+  } else if (local_index.x == 0 && local_index.y == MATRIX_SIZE_PER_BLOCK-1) {
+    // Bottom left
+    if (global_index.x == 0 || global_index.y == matrix_dim.height-1) {
+      shared_matrix[current_shared_mat_idx + shared_matrix_dim.width - 1] = input_matrix[current_mat_idx];
+    } else {
+      shared_matrix[current_shared_mat_idx + shared_matrix_dim.width - 1] = input_matrix[current_mat_idx + matrix_dim.width - 1];
+    }
+  } else if (local_index.x == MATRIX_SIZE_PER_BLOCK-1 && local_index.y == MATRIX_SIZE_PER_BLOCK-1) {
+    // Bottom right
+    if (global_index.x == matrix_dim.width-1 || global_index.y == matrix_dim.height-1) {
+      shared_matrix[current_shared_mat_idx + shared_matrix_dim.width + 1] = input_matrix[current_mat_idx];
+    } else {
+      shared_matrix[current_shared_mat_idx + shared_matrix_dim.width + 1] = input_matrix[current_mat_idx + matrix_dim.width + 1];
+    }
+  }
+
   __syncthreads();
 
-  Dim shared_matrix_dim;
-  shared_matrix_dim.width = MATRIX_SIZE_PER_BLOCK+2;
-  shared_matrix_dim.height = MATRIX_SIZE_PER_BLOCK+2;
-  output_matrix[current_matrix_index] = convolution_core(
+  output_matrix[current_mat_idx] = convolution_core(
     local_index,
     shared_matrix,
     shared_matrix_dim,
@@ -86,8 +114,8 @@ __device__ __host__ int convolution_core(Vec2 index, unsigned char *input_matrix
 
   for (int i = 0; i < kernel_size; i++) {
     for (int j = 0; j < kernel_size; j++) {
-      int vertical_offset = ((index.y + i) - (int)floor(kernel_size/2.0));
-      int horizontal_offset = (index.x + j) - (int)floor(kernel_size/2.0);
+      int vertical_offset = index.y - floor(kernel_size / (float) 2.0) + i;
+      int horizontal_offset = index.x - floor(kernel_size / (float) 2.0) + j;
       int tmp_index = vertical_offset*matrix_dim.width + horizontal_offset;
       
       convolution_result += input_matrix[matrix_dim.width+1 + tmp_index] * kernel[i*kernel_size + j];

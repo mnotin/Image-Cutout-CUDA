@@ -30,7 +30,6 @@ void ProcessingUnitDevice::canny(unsigned char *h_gradient_matrix, float *h_angl
     cudaMemcpy(d_done, &h_done, sizeof(int), cudaMemcpyHostToDevice);
     histeresis_thresholding_loop_kernel<<<blocks, threads>>>(d_ht_matrix, matrix_dim, d_done);
     cudaMemcpy(&h_done, d_done, sizeof(int), cudaMemcpyDeviceToHost);
-    cudaDeviceSynchronize();
   }
   histeresis_thresholding_end_kernel<<<blocks, threads>>>(d_gradient_matrix, d_ht_matrix, matrix_dim);
 
@@ -106,34 +105,39 @@ __device__ __host__ unsigned char non_maximum_suppression_core(Vec2 index, unsig
 
   if (get_color_canny(ANGLE) == 'Y') {
     // Vertical gradient direction : Yellow
-    if (gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - matrix_dim.width] && 
-          get_color_canny(angle_matrix[INT_INDEX - matrix_dim.width] + M_PI_2) == 'Y' || 
-        gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + matrix_dim.width] &&
-          get_color_canny(angle_matrix[INT_INDEX + matrix_dim.width] + M_PI_2) == 'Y') {
+    if (0 < index.y && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - matrix_dim.width] && 
+          get_color_canny(angle_matrix[INT_INDEX - matrix_dim.width] + M_PI_2) == 'Y') {
+      final_value = 0;
+    } else if (index.y < matrix_dim.width - 1 && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + matrix_dim.width] &&
+        get_color_canny(angle_matrix[INT_INDEX + matrix_dim.width] + M_PI_2) == 'Y') {
       final_value = 0;
     }
   } else if (get_color_canny(ANGLE) == 'G') {
     // Top right gradient direction : Green
-    if (gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - matrix_dim.width + 1] &&
-          get_color_canny(angle_matrix[INT_INDEX - matrix_dim.width + 1] + M_PI_2) == 'G' || 
-        gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + matrix_dim.width - 1] &&
-          get_color_canny(angle_matrix[INT_INDEX - matrix_dim.width - 1] + M_PI_2) == 'G') {
+    if (index.x < matrix_dim.width-1 && 0 < index.y && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - matrix_dim.width + 1] &&
+      get_color_canny(angle_matrix[INT_INDEX - matrix_dim.width + 1] + M_PI_2) == 'G') {
+      final_value = 0;
+    } else if (0 < index.x && index.y < matrix_dim.height-1 && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + matrix_dim.width - 1] &&
+      get_color_canny(angle_matrix[INT_INDEX - matrix_dim.width - 1] + M_PI_2) == 'G') {
       final_value = 0;
     }
   } else if (get_color_canny(ANGLE) == 'R') {
     // Top left gradient direction : Red
-    if (gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - matrix_dim.width - 1] &&
-          get_color_canny(angle_matrix[INT_INDEX - matrix_dim.width - 1] + M_PI_2) == 'R' || 
-        gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + matrix_dim.width + 1] &&
-          get_color_canny(angle_matrix[INT_INDEX + matrix_dim.width + 1] + M_PI_2) == 'R') { 
+    if (0 < index.x && 0 < index.y && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - matrix_dim.width - 1] &&
+      get_color_canny(angle_matrix[INT_INDEX - matrix_dim.width - 1] + M_PI_2) == 'R') {
+      final_value = 0;
+    } else if (index.x < matrix_dim.width-1 && index.y < matrix_dim.height-1 &&
+      gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + matrix_dim.width + 1] &&
+      get_color_canny(angle_matrix[INT_INDEX + matrix_dim.width + 1] + M_PI_2) == 'R') { 
       final_value = 0;
     }
-  } else {
+  } else if (get_color_canny(ANGLE) == 'B')  {
     // Horizontal gradient direction : Blue
-    if (gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - 1] &&
-          get_color_canny(angle_matrix[INT_INDEX - 1] + M_PI_2) == 'B' || 
-        gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + 1] &&
-          get_color_canny(angle_matrix[INT_INDEX + 1] + M_PI_2) == 'B') {
+    if (0 < index.x && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - 1] &&
+      get_color_canny(angle_matrix[INT_INDEX - 1] + M_PI_2) == 'B') {
+      final_value = 0;
+    } else if (index.x < matrix_dim.width - 1 && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + 1] &&
+      get_color_canny(angle_matrix[INT_INDEX + 1] + M_PI_2) == 'B') {
       final_value = 0;
     }
   }
@@ -196,31 +200,39 @@ __device__ __host__ void histeresis_thresholding_loop_core(Vec2 index, unsigned 
   if (ht_matrix[INT_INDEX] == 'P') {
     // Pending pixel
 
-    if (ht_matrix[(index.y-1)*matrix_dim.width + index.x-1] == 'M') {
+    if (0 < index.x && 0 < index.y && ht_matrix[(index.y-1)*matrix_dim.width + index.x-1] == 'M') {
+      // Top Left
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
-    } else if (ht_matrix[(index.y-1)*matrix_dim.width + index.x] == 'M') {
+    } else if (0 < index.y && ht_matrix[(index.y-1)*matrix_dim.width + index.x] == 'M') {
+      // Top
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
-    } else if (ht_matrix[(index.y-1)*matrix_dim.width + index.x+1] == 'M') {
+    } else if (index.x < matrix_dim.width-1 && 0 < index.y && ht_matrix[(index.y-1)*matrix_dim.width + index.x+1] == 'M') {
+      // Top Right
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
-    } else if (ht_matrix[index.y*matrix_dim.width + index.x-1] == 'M') {
+    } else if (0 < index.x && ht_matrix[index.y*matrix_dim.width + index.x-1] == 'M') {
+      // Left 
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
-    } else if (ht_matrix[index.y*matrix_dim.width + index.x+1] == 'M') {
+    } else if (index.x < matrix_dim.width-1 && ht_matrix[index.y*matrix_dim.width + index.x+1] == 'M') {
+      // Right
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
-    } else if (ht_matrix[(index.y+1)*matrix_dim.width + index.x-1] == 'M') {
+    } else if (0 < index.x && index.y < matrix_dim.height-1 && ht_matrix[(index.y+1)*matrix_dim.width + index.x-1] == 'M') {
+      // Bottom Left
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
-    } else if (ht_matrix[(index.y+1)*matrix_dim.width + index.x] == 'M') {
+    } else if (index.y < matrix_dim.height-1 && ht_matrix[(index.y+1)*matrix_dim.width + index.x] == 'M') {
+      // Bottom
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
-    } else if (ht_matrix[(index.y+1)*matrix_dim.width + index.x+1] == 'M') {
+    } else if (index.x < matrix_dim.width-1 && index.y < matrix_dim.height-1 && ht_matrix[(index.y+1)*matrix_dim.width + index.x+1] == 'M') {
+      // Bottom Left
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
-    } 
+    }
   }
 }
 

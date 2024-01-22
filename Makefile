@@ -23,3 +23,8 @@ main: $(SRC)
 	nvcc --gpu-architecture=sm_50 --device-c $(SRC)
 	nvcc -o main --gpu-architecture=sm_50 $(SRC_OBJ) -lm
 	rm *.o
+
+debug: $(SRC)
+	nvcc --gpu-architecture=sm_50 --device-c -G -g $(SRC)
+	nvcc -o main --gpu-architecture=sm_50 -G -g $(SRC_OBJ) -lm
+	rm *.o

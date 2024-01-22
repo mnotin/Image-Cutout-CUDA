@@ -107,14 +107,14 @@ void test_canny(char *filename, Vec2 start_pixel, int canny_min,
     // GPU
     // 1. First step, convert the picture into grayscale
     ProcessingUnitDevice::rgb_to_gray(rgb_image, gray_image);
-
+    
     // 2. Second step, smooth the image using a Gaussian blur
     // to remove possible noise in the picture
     for (int i = 0; i < 5; i++) {
       ProcessingUnitDevice::gaussian_blur(gray_image->data, gray_image_dim);
       cudaDeviceSynchronize();
     }
-
+    
     // 3. Third step, apply the Sobel-Feldman operator to detect edges of shapes
     ProcessingUnitDevice::sobel_feldman(gray_image->data, gradient_image->data, angle_image, gray_image_dim);
     writePGM("output/sf_gradient_output.pgm", gradient_image);
