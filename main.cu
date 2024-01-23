@@ -6,7 +6,7 @@
 
 int main(int argc, char **argv) {
   char *filename;
-  Vec2 start_pixel;
+  int2 start_pixel;
   EdgeDetection edge_detection = EdgeDetection::Canny;
   ProcessingUnit processing_unit = ProcessingUnit::Device;
   int canny_min_val = 50;

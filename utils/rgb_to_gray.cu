@@ -4,15 +4,13 @@
 #include "../main.hpp"
 
 __global__ void rgb_to_gray_kernel(unsigned char *rgb_image, unsigned char *gray_image, Dim image_dim) {
-  Vec2 index;
-  index.x = threadIdx.x + blockIdx.x * blockDim.x;
-  index.y = threadIdx.y + blockIdx.y * blockDim.y;
+  int2 index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
 
 
   gray_image[index.y*image_dim.width + index.x] = rgb_to_gray_core(index, rgb_image, image_dim);
 }
 
-__device__ __host__ unsigned char rgb_to_gray_core(Vec2 index, unsigned char *rgb_image, Dim image_dim) {
+__device__ __host__ unsigned char rgb_to_gray_core(int2 index, unsigned char *rgb_image, Dim image_dim) {
   unsigned char r = 0, g = 0, b = 0;
 
   if (index.y*image_dim.width+index.x < image_dim.width * image_dim.height) {
@@ -60,9 +58,7 @@ void ProcessingUnitHost::rgb_to_gray(RGBImage *rgb_image, GrayImage *gray_image)
 
   for (int i = 0; i < gray_image->height; i++) {
     for (int j = 0; j < gray_image->width; j++) {
-      Vec2 index;
-      index.x = j;
-      index.y = i;
+      int2 index = make_int2(j, i);
 
       gray_image->data[i*gray_image->width + j] = rgb_to_gray_core(index, rgb_image->data, gray_image_dim);
     }

@@ -11,7 +11,7 @@
 #include "edge_detection/sobel_feldman.hpp"
 #include "edge_detection/canny.hpp"
 
-void test_sobel_feldman(char *filename, Vec2 start_pixel, ProcessingUnit processing_unit) {
+void test_sobel_feldman(char *filename, int2 start_pixel, ProcessingUnit processing_unit) {
   RGBImage *rgb_image = readPPM(filename);
   GrayImage *gray_image = createPGM(rgb_image->width, rgb_image->height);
   GrayImage *gradient_image = createPGM(rgb_image->width, rgb_image->height);
@@ -82,7 +82,7 @@ void test_sobel_feldman(char *filename, Vec2 start_pixel, ProcessingUnit process
   delete [] angle_image;
 }
 
-void test_canny(char *filename, Vec2 start_pixel, int canny_min,
+void test_canny(char *filename, int2 start_pixel, int canny_min,
   int canny_max, int canny_sample_offset, ProcessingUnit processing_unit
 ) {
   RGBImage *rgb_image = readPPM(filename);

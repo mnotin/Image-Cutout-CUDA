@@ -69,7 +69,7 @@ void ProcessingUnitHost::sobel_feldman(unsigned char *input_matrix, unsigned cha
   int *horizontal_gradient = new int[matrix_dim.width * matrix_dim.height];
   int *vertical_gradient = new int[matrix_dim.width * matrix_dim.height];
 
-  Vec2 index;
+  int2 index;
 
   // Horizontal gradient
   for (index.y = 0; index.y < matrix_dim.height; index.y++) {
@@ -107,14 +107,12 @@ void ProcessingUnitHost::sobel_feldman(unsigned char *input_matrix, unsigned cha
  * Computes the global gradient of an image after being processed by the Sobel-Feldman operator.
  **/
 __global__ void global_gradient_kernel(unsigned char *output_matrix, int *horizontal_edges, int *vertical_edges, Dim matrix_dim) {
-  Vec2 index;
-  index.x = threadIdx.x + (blockIdx.x * blockDim.x);
-  index.y = threadIdx.y + (blockIdx.y * blockDim.y);
+  int2 index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
 
   output_matrix[index.y * matrix_dim.width + index.x] = global_gradient_core(index, horizontal_edges, vertical_edges, matrix_dim);
 }
 
-__device__ __host__ unsigned char global_gradient_core(Vec2 index, int *horizontal_edges, int *vertical_edges, Dim matrix_dim) {
+__device__ __host__ unsigned char global_gradient_core(int2 index, int *horizontal_edges, int *vertical_edges, Dim matrix_dim) {
   int g_x = horizontal_edges[index.y * matrix_dim.width + index.x];
   int g_y = vertical_edges[index.y * matrix_dim.width + index.x];
   float global_gradient = sqrt((double) g_x * g_x + g_y * g_y);
@@ -124,14 +122,12 @@ __device__ __host__ unsigned char global_gradient_core(Vec2 index, int *horizont
 
 
 __global__ void angle_kernel(int *horizontal_gradient, int *vertical_gradient, float *angle_matrix, Dim matrix_dim) {
-  Vec2 index;
-  index.x = threadIdx.x + (blockIdx.x * blockDim.x);
-  index.y = threadIdx.y + (blockIdx.y * blockDim.y);
+  int2 index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
 
   angle_matrix[index.y * matrix_dim.width + index.x] = angle_core(index, horizontal_gradient, vertical_gradient, matrix_dim); 
 }
 
-__device__ __host__ float angle_core(Vec2 index, int *horizontal_gradient, int *vertical_gradient, Dim matrix_dim) {
+__device__ __host__ float angle_core(int2 index, int *horizontal_gradient, int *vertical_gradient, Dim matrix_dim) {
   int g_x = horizontal_gradient[index.y * matrix_dim.width + index.x];
   int g_y = vertical_gradient[index.y * matrix_dim.width + index.x];
   float angle = atan((float) g_y / g_x);
@@ -166,7 +162,7 @@ void ProcessingUnitDevice::generate_edge_color(unsigned char *h_gradient_matrix,
 }
 
 void ProcessingUnitHost::generate_edge_color(unsigned char *gradient_matrix, float *angle_matrix, unsigned char *output_image, Dim matrix_dim) {
-  Vec2 index;
+  int2 index;
   for (index.y = 0; index.y < matrix_dim.height; index.y++) {
     for (index.x = 0; index.x < matrix_dim.width; index.x++) {
       edge_color_core(index, gradient_matrix, angle_matrix, output_image, matrix_dim);
@@ -178,14 +174,12 @@ void ProcessingUnitHost::generate_edge_color(unsigned char *gradient_matrix, flo
  * Give a color to edges depending on their direction.
  **/
 __global__ void edge_color_kernel(unsigned char *gradient_matrix, float *angle_matrix, unsigned char *output_image, Dim image_dim) { 
-  Vec2 index;
-  index.x = threadIdx.x + (blockIdx.x * blockDim.x);
-  index.y = threadIdx.y + (blockIdx.y * blockDim.y);
+  int2 index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
   
   edge_color_core(index, gradient_matrix, angle_matrix, output_image, image_dim);
 }
 
-__device__ __host__ void edge_color_core(Vec2 index, unsigned char *gradient_matrix, float *angle_matrix, unsigned char *output_image, Dim image_dim) { 
+__device__ __host__ void edge_color_core(int2 index, unsigned char *gradient_matrix, float *angle_matrix, unsigned char *output_image, Dim image_dim) { 
   const float ANGLE = angle_matrix[index.y*image_dim.width + index.x] + M_PI_2;
   const int INT_INDEX = index.y*image_dim.width + index.x;
   

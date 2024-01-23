@@ -56,9 +56,7 @@ void ProcessingUnitHost::gaussian_blur(unsigned char *matrix, Dim matrix_dim) {
 
   for (int i = 0; i < matrix_dim.height; i++) {
     for (int j = 0; j < matrix_dim.width; j++) {
-      Vec2 index;
-      index.x = j;
-      index.y = i;
+      int2 index = make_int2(j, i);
 
       output_matrix[i*matrix_dim.width + j] = convolution_core(index, 
         matrix,

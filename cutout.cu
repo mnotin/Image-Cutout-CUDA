@@ -5,7 +5,7 @@
 #include "cutout.hpp"
 #include "main.hpp"
 
-void ProcessingUnitDevice::cutout(unsigned char *h_rgb_image, unsigned char *h_edge_matrix, Dim matrix_dim, Vec2 start_pixel, int threshold) {
+void ProcessingUnitDevice::cutout(unsigned char *h_rgb_image, unsigned char *h_edge_matrix, Dim matrix_dim, int2 start_pixel, int threshold) {
   dim3 threads = dim3(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
   dim3 blocks = dim3(matrix_dim.width/MATRIX_SIZE_PER_BLOCK, matrix_dim.height/MATRIX_SIZE_PER_BLOCK);
 
@@ -71,7 +71,7 @@ void ProcessingUnitDevice::cutout(unsigned char *h_rgb_image, unsigned char *h_e
   cudaFree(d_done);
 }
 
-void ProcessingUnitHost::cutout(unsigned char *rgb_image, unsigned char *edge_matrix, Dim matrix_dim, Vec2 start_pixel, int threshold) {
+void ProcessingUnitHost::cutout(unsigned char *rgb_image, unsigned char *edge_matrix, Dim matrix_dim, int2 start_pixel, int threshold) {
   int done = 0;
   char cutout_matrix[matrix_dim.height * matrix_dim.width];
   
@@ -81,7 +81,7 @@ void ProcessingUnitHost::cutout(unsigned char *rgb_image, unsigned char *edge_ma
     }
   }
   
-  Vec2 index;
+  int2 index;
   for (index.y = 0; index.y < matrix_dim.height; index.y++) {
     for (index.x = 0; index.x < matrix_dim.width; index.x++) {
       cutout_matrix[index.y*matrix_dim.width + index.x] = draw_edges_on_cutout_matrix_core(index, edge_matrix, matrix_dim, start_pixel, threshold);
@@ -108,13 +108,9 @@ void ProcessingUnitHost::cutout(unsigned char *rgb_image, unsigned char *edge_ma
  * First step of the cutout process.
  * Each gradient pixel with a value above the threshold is considered a border.
  **/
-__global__ void draw_edges_on_cutout_matrix_kernel(unsigned char *edge_matrix, char *micro_cutout_matrix, Dim matrix_dim, Vec2 start_pixel, int threshold, char *macro_cutout_matrix) {
-  Vec2 global_index;
-  global_index.x = threadIdx.x + (blockIdx.x * blockDim.x);
-  global_index.y = threadIdx.y + (blockIdx.y * blockDim.y);
-  Vec2 local_index;
-  local_index.x = threadIdx.x;
-  local_index.y = threadIdx.y;
+__global__ void draw_edges_on_cutout_matrix_kernel(unsigned char *edge_matrix, char *micro_cutout_matrix, Dim matrix_dim, int2 start_pixel, int threshold, char *macro_cutout_matrix) {
+  int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
+  int2 local_index = make_int2(threadIdx.x, threadIdx.y);
   __shared__ bool block_contains_edge;
   __shared__ bool block_contains_start_pixel;
   
@@ -145,7 +141,7 @@ __global__ void draw_edges_on_cutout_matrix_kernel(unsigned char *edge_matrix, c
   }
 }
 
-__device__ __host__ char draw_edges_on_cutout_matrix_core(Vec2 index, unsigned char *edge_matrix, Dim matrix_dim, Vec2 start_pixel, int threshold) {
+__device__ __host__ char draw_edges_on_cutout_matrix_core(int2 index, unsigned char *edge_matrix, Dim matrix_dim, int2 start_pixel, int threshold) {
   char result = 'D'; // Discard
 
   if (index.x < matrix_dim.width && index.y < matrix_dim.height && threshold < edge_matrix[index.y*matrix_dim.width + index.x]) {
@@ -164,12 +160,8 @@ __device__ __host__ char draw_edges_on_cutout_matrix_core(Vec2 index, unsigned c
  * Loops over a cutout matrix from the start pixel to fill the shape it is in.
  **/
 __global__ void cutout_algorithm_kernel(char *cutout_matrix, Dim matrix_dim, int *done) {
-  Vec2 global_index;
-  Vec2 local_index;
-  global_index.x = threadIdx.x + (blockIdx.x * blockDim.x);
-  global_index.y = threadIdx.y + (blockIdx.y * blockDim.y);
-  local_index.x = threadIdx.x;
-  local_index.y = threadIdx.y;
+  int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
+  int2 local_index = make_int2(threadIdx.x, threadIdx.y);
 
   Dim shared_matrix_dim;
   shared_matrix_dim.width = MATRIX_SIZE_PER_BLOCK;
@@ -212,7 +204,7 @@ __global__ void cutout_algorithm_kernel(char *cutout_matrix, Dim matrix_dim, int
     shared_cutout_matrix[local_index.y*MATRIX_SIZE_PER_BLOCK + local_index.x];
 }
 
-__device__ __host__ void cutout_algorithm_core(Vec2 index, char *cutout_matrix, Dim matrix_dim, int *done) {
+__device__ __host__ void cutout_algorithm_core(int2 index, char *cutout_matrix, Dim matrix_dim, int *done) {
   const int INT_INDEX = index.y*matrix_dim.width + index.x;
 
   if (cutout_matrix[INT_INDEX] == 'D') {
@@ -227,12 +219,8 @@ __device__ __host__ void cutout_algorithm_core(Vec2 index, char *cutout_matrix, 
 }
 
 __global__ void transfer_edges_between_blocks_kernel(char *cutout_matrix, Dim matrix_dim, int *done) {
-  Vec2 global_index;
-  Vec2 local_index;
-  global_index.x = threadIdx.x + (blockIdx.x * blockDim.x);
-  global_index.y = threadIdx.y + (blockIdx.y * blockDim.y);
-  local_index.x = threadIdx.x;
-  local_index.y = threadIdx.y;
+  int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
+  int2 local_index = make_int2(threadIdx.x, threadIdx.y);
 
   if (local_index.y == 0 && 0 < global_index.y ||
       local_index.y == MATRIX_SIZE_PER_BLOCK-1 && global_index.y < matrix_dim.height-1 ||
@@ -243,12 +231,8 @@ __global__ void transfer_edges_between_blocks_kernel(char *cutout_matrix, Dim ma
 }
 
 __global__ void apply_macro_to_micro_cutout_matrix_kernel(char *macro_cutout_matrix, char *micro_cutout_matrix, Dim macro_matrix_dim, Dim micro_matrix_dim) {
-  Vec2 global_index;
-  Vec2 local_index;
-  global_index.x = threadIdx.x + (blockIdx.x * blockDim.x);
-  global_index.y = threadIdx.y + (blockIdx.y * blockDim.y);
-  local_index.x = threadIdx.x;
-  local_index.y = threadIdx.y;
+  int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
+  int2 local_index = make_int2(threadIdx.x, threadIdx.y);
 
   __shared__ char macro_matrix_content;
 
@@ -263,15 +247,13 @@ __global__ void apply_macro_to_micro_cutout_matrix_kernel(char *macro_cutout_mat
   }
 }
 
-__global__ void apply_cutout_kernel(char *cutout_matrix, unsigned char *output_image, Dim image_dim, Vec2 start_pixel) { 
-  Vec2 index;
-  index.x = threadIdx.x + blockIdx.x * blockDim.x;
-  index.y = threadIdx.y + blockIdx.y * blockDim.y;
+__global__ void apply_cutout_kernel(char *cutout_matrix, unsigned char *output_image, Dim image_dim, int2 start_pixel) { 
+  int2 index  = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
   
   apply_cutout_core(index, cutout_matrix, output_image, image_dim, start_pixel);
 }
 
-__device__ __host__ void apply_cutout_core(Vec2 index, char *cutout_matrix, unsigned char *output_image, Dim image_dim, Vec2 start_pixel) {
+__device__ __host__ void apply_cutout_core(int2 index, char *cutout_matrix, unsigned char *output_image, Dim image_dim, int2 start_pixel) {
   const int INT_INDEX = index.y*image_dim.width + index.x;
 
   if (index.x == start_pixel.x && index.y == start_pixel.y) {

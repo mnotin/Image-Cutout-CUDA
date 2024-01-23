@@ -44,7 +44,7 @@ void ProcessingUnitHost::canny(unsigned char *gradient_matrix, float *angle_matr
   int done = 0;
   unsigned char ht_matrix[matrix_dim.width * matrix_dim.height];
   unsigned char gradient_matrix_buffer[matrix_dim.width * matrix_dim.height];
-  Vec2 index;
+  int2 index;
   
   for (index.y = 0; index.y < matrix_dim.height; index.y++) {
     for (index.x = 0; index.x < matrix_dim.width; index.x++) {
@@ -86,9 +86,7 @@ void ProcessingUnitHost::canny(unsigned char *gradient_matrix, float *angle_matr
 }
 
 __global__ void non_maximum_suppression_kernel(unsigned char *gradient_matrix, float *angle_matrix, Dim matrix_dim) {
-  Vec2 index;
-  index.x = threadIdx.x + (blockIdx.x * blockDim.x);
-  index.y = threadIdx.y + (blockIdx.y * blockDim.y);
+  int2 index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
   
   unsigned char final_value = non_maximum_suppression_core(index, gradient_matrix, angle_matrix, matrix_dim);
   
@@ -98,7 +96,7 @@ __global__ void non_maximum_suppression_kernel(unsigned char *gradient_matrix, f
   gradient_matrix[index.y*matrix_dim.width + index.x] = final_value; 
 }
 
-__device__ __host__ unsigned char non_maximum_suppression_core(Vec2 index, unsigned char *gradient_matrix, float *angle_matrix, Dim matrix_dim) {
+__device__ __host__ unsigned char non_maximum_suppression_core(int2 index, unsigned char *gradient_matrix, float *angle_matrix, Dim matrix_dim) {
   const int INT_INDEX = index.y*matrix_dim.width + index.x;
   const float ANGLE = angle_matrix[INT_INDEX] + M_PI_2;
   unsigned char final_value = gradient_matrix[INT_INDEX];
@@ -146,15 +144,13 @@ __device__ __host__ unsigned char non_maximum_suppression_core(Vec2 index, unsig
 }
 
 __global__ void histeresis_thresholding_init_kernel(unsigned char *gradient_matrix, unsigned char *ht_matrix, Dim matrix_dim, int canny_min, int canny_max) {
-  Vec2 index;
-  index.x = threadIdx.x + (blockIdx.x * blockDim.x);
-  index.y = threadIdx.y + (blockIdx.y * blockDim.y);
+  int2 index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
 
   ht_matrix[index.y*matrix_dim.width + index.x] =
     histeresis_thresholding_init_core(index, gradient_matrix, matrix_dim, canny_min, canny_max);
 }
 
-__device__ __host__ unsigned char histeresis_thresholding_init_core(Vec2 index, unsigned char *gradient_matrix, Dim matrix_dim, int canny_min, int canny_max) {
+__device__ __host__ unsigned char histeresis_thresholding_init_core(int2 index, unsigned char *gradient_matrix, Dim matrix_dim, int canny_min, int canny_max) {
   const int INT_INDEX = index.y*matrix_dim.width + index.x;
   unsigned char result;
 
@@ -194,7 +190,10 @@ __global__ void histeresis_thresholding_loop_kernel(unsigned char *ht_matrix, Di
   }
 }
 
-__device__ __host__ void histeresis_thresholding_loop_core(Vec2 index, unsigned char *ht_matrix, Dim matrix_dim, int *done) {
+/**
+ * Mark pending pixels connected to a marked pixel.
+ */
+__device__ __host__ void histeresis_thresholding_loop_core(int2 index, unsigned char *ht_matrix, Dim matrix_dim, int *done) {
   const int INT_INDEX = index.y*matrix_dim.width + index.x; 
 
   if (ht_matrix[INT_INDEX] == 'P') {
@@ -237,14 +236,12 @@ __device__ __host__ void histeresis_thresholding_loop_core(Vec2 index, unsigned 
 }
 
 __global__ void histeresis_thresholding_end_kernel(unsigned char *gradient_matrix, unsigned char *ht_matrix, Dim matrix_dim) {
-  Vec2 index;
-  index.x = threadIdx.x + (blockIdx.x * blockDim.x);
-  index.y = threadIdx.y + (blockIdx.y * blockDim.y);
+  int2 index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
 
   gradient_matrix[index.y*matrix_dim.width + index.x] = histeresis_thresholding_end_core(index, ht_matrix, matrix_dim);
 }
 
-__device__ __host__ unsigned char histeresis_thresholding_end_core(Vec2 index, unsigned char *ht_matrix, Dim matrix_dim) {
+__device__ __host__ unsigned char histeresis_thresholding_end_core(int2 index, unsigned char *ht_matrix, Dim matrix_dim) {
   const int INT_INDEX = index.y*matrix_dim.width + index.x;   
   unsigned char result;
 
