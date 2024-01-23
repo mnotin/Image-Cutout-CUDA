@@ -169,7 +169,6 @@ __global__ void cutout_algorithm_kernel(unsigned char *cutout_matrix, Dim matrix
 
 __device__ __host__ void cutout_algorithm_core(Vec2 index, unsigned char *cutout_matrix, Dim matrix_dim, int *done) {
   const int INT_INDEX = index.y*matrix_dim.width + index.x;
-  int changed = 0;
 
   if (cutout_matrix[INT_INDEX] == 'A') {
     // Active pixel
@@ -194,14 +193,6 @@ __device__ __host__ void cutout_algorithm_core(Vec2 index, unsigned char *cutout
       *done = 0;
     }
 
-    changed = 1;
-  }
-
-#ifdef __CUDA_ARCH__
-  __syncthreads();
-#endif
-
-  if (cutout_matrix[INT_INDEX] == 'A' && changed) {
     cutout_matrix[INT_INDEX] = 'M'; // At the end of the loop, current pixel is marked
   }
 }
