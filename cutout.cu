@@ -34,6 +34,7 @@ void ProcessingUnitDevice::cutout(unsigned char *h_rgb_image, unsigned char *h_e
   dim3 threads = dim3(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
   dim3 blocks = dim3(matrix_dim.width/MATRIX_SIZE_PER_BLOCK, matrix_dim.height/MATRIX_SIZE_PER_BLOCK);
   draw_edges_on_cutout_matrix_kernel<<<blocks, threads>>>(d_edge_matrix, d_cutout_matrix, matrix_dim, start_pixel, threshold);
+  
 
   while (h_done == 0) {
     h_done = 1; // Let's assume that the process is done
@@ -73,8 +74,8 @@ void ProcessingUnitHost::cutout(unsigned char *rgb_image, unsigned char *edge_ma
 
   while (done == 0) {
     done = 1;
-    for (index.y = 0; index.y < matrix_dim.width; index.y++) {
-      for (index.x = 0; index.x < matrix_dim.height; index.x++) {
+    for (index.y = 0; index.y < matrix_dim.height; index.y++) {
+      for (index.x = 0; index.x < matrix_dim.width; index.x++) {
         cutout_algorithm_core(index, cutout_matrix, matrix_dim, &done);
       }
     }
@@ -130,7 +131,6 @@ __global__ void cutout_algorithm_kernel(unsigned char *cutout_matrix, Dim matrix
   shared_matrix_dim.height = MATRIX_SIZE_PER_BLOCK;
 
   __shared__ int shared_done;
-
   __shared__ unsigned char shared_cutout_matrix[MATRIX_SIZE_PER_BLOCK*MATRIX_SIZE_PER_BLOCK];
   shared_cutout_matrix[local_index.y*MATRIX_SIZE_PER_BLOCK + local_index.x] = cutout_matrix[global_index.y*matrix_dim.width + global_index.x];
 
@@ -141,6 +141,8 @@ __global__ void cutout_algorithm_kernel(unsigned char *cutout_matrix, Dim matrix
   __syncthreads();
   
   while (shared_done == 0) {
+    __syncthreads();
+
     if (local_index.x == 0 && local_index.y == 0) {
       shared_done = 1; // Let's assume the process is finished
     }
@@ -156,8 +158,6 @@ __global__ void cutout_algorithm_kernel(unsigned char *cutout_matrix, Dim matrix
       // to rerun them all at least once
       *done = 0;
     }
-    
-    __syncthreads();
   }
 
   __syncthreads();
@@ -169,6 +169,7 @@ __global__ void cutout_algorithm_kernel(unsigned char *cutout_matrix, Dim matrix
 
 __device__ __host__ void cutout_algorithm_core(Vec2 index, unsigned char *cutout_matrix, Dim matrix_dim, int *done) {
   const int INT_INDEX = index.y*matrix_dim.width + index.x;
+  int changed = 0;
 
   if (cutout_matrix[INT_INDEX] == 'A') {
     // Active pixel
@@ -192,7 +193,15 @@ __device__ __host__ void cutout_algorithm_core(Vec2 index, unsigned char *cutout
       cutout_matrix[INT_INDEX + matrix_dim.width] = 'A';
       *done = 0;
     }
-      
+
+    changed = 1;
+  }
+
+#ifdef __CUDA_ARCH__
+  __syncthreads();
+#endif
+
+  if (cutout_matrix[INT_INDEX] == 'A' && changed) {
     cutout_matrix[INT_INDEX] = 'M'; // At the end of the loop, current pixel is marked
   }
 }
@@ -250,7 +259,7 @@ __global__ void apply_cutout_kernel(unsigned char *cutout_matrix, unsigned char 
   apply_cutout_core(index, cutout_matrix, output_image, image_dim, start_pixel); 
 }
 
-__device__ __host__ void apply_cutout_core(Vec2 index, unsigned char *cutout_matrix, unsigned char *output_image, Dim image_dim, Vec2 start_pixel) { 
+__device__ __host__ void apply_cutout_core(Vec2 index, unsigned char *cutout_matrix, unsigned char *output_image, Dim image_dim, Vec2 start_pixel) {
   const int INT_INDEX = index.y*image_dim.width + index.x;
 
   if (index.x == start_pixel.x && index.y == start_pixel.y) {
