@@ -108,7 +108,7 @@ __device__ __host__ unsigned char draw_edges_on_cutout_matrix_core(Vec2 index, u
   }
   
   if (start_pixel.x == index.x && start_pixel.y == index.y) {
-    result = 'A';
+    result = 'M';
   }
 
   return result;
@@ -170,30 +170,14 @@ __global__ void cutout_algorithm_kernel(unsigned char *cutout_matrix, Dim matrix
 __device__ __host__ void cutout_algorithm_core(Vec2 index, unsigned char *cutout_matrix, Dim matrix_dim, int *done) {
   const int INT_INDEX = index.y*matrix_dim.width + index.x;
 
-  if (cutout_matrix[INT_INDEX] == 'A') {
-    // Active pixel
-
-    if (0 < index.x && cutout_matrix[INT_INDEX-1] == 'D') {
-      cutout_matrix[INT_INDEX-1] = 'A';
+  if (cutout_matrix[INT_INDEX] == 'D') {
+    if (0 < index.x && cutout_matrix[INT_INDEX-1] == 'M' || 
+        index.x < matrix_dim.width-1 && cutout_matrix[INT_INDEX+1] == 'M' ||
+        0 < index.y && cutout_matrix[INT_INDEX - matrix_dim.width] == 'M' ||
+        index.y < matrix_dim.height-1 && cutout_matrix[INT_INDEX + matrix_dim.width] == 'M') {
+      cutout_matrix[INT_INDEX] = 'M';
       *done = 0;
     }
-    
-    if (index.x < matrix_dim.width-1 && cutout_matrix[INT_INDEX+1] == 'D') {
-      cutout_matrix[INT_INDEX+1] = 'A';
-      *done = 0;
-    }
-    
-    if (0 < index.y && cutout_matrix[INT_INDEX - matrix_dim.width] == 'D') {
-      cutout_matrix[INT_INDEX - matrix_dim.width] = 'A';
-      *done = 0;
-    }
-    
-    if (index.y < matrix_dim.height-1 && cutout_matrix[INT_INDEX + matrix_dim.width] == 'D') {
-      cutout_matrix[INT_INDEX + matrix_dim.width] = 'A';
-      *done = 0;
-    }
-
-    cutout_matrix[INT_INDEX] = 'M'; // At the end of the loop, current pixel is marked
   }
 }
 
@@ -205,40 +189,11 @@ __global__ void transfer_edges_between_blocks_kernel(unsigned char *cutout_matri
   local_index.x = threadIdx.x;
   local_index.y = threadIdx.y;
 
-  const int GLOBAL_INT_INDEX = global_index.y*matrix_dim.width + global_index.x;
-
-  if (cutout_matrix[GLOBAL_INT_INDEX] == 'M') {
-    // Top
-    if (local_index.y == 0 && 0 < global_index.y) {
-      if (cutout_matrix[GLOBAL_INT_INDEX - matrix_dim.width] == 'D') {
-        cutout_matrix[GLOBAL_INT_INDEX - matrix_dim.width] = 'A';
-        *done = 0;
-      }
-    }
-
-    // Bottom 
-    if (local_index.y == MATRIX_SIZE_PER_BLOCK-1 && global_index.y < matrix_dim.height-1) {
-      if (cutout_matrix[GLOBAL_INT_INDEX + matrix_dim.width] == 'D') {
-        cutout_matrix[GLOBAL_INT_INDEX + matrix_dim.width] = 'A';
-        *done = 0;
-      }
-    }
-
-    // Left
-    if (local_index.x == 0 && 0 < global_index.x) {
-      if (cutout_matrix[GLOBAL_INT_INDEX - 1] == 'D') {
-        cutout_matrix[GLOBAL_INT_INDEX - 1] = 'A';
-        *done = 0;
-      }
-    }
-
-    // Right 
-    if (local_index.x == MATRIX_SIZE_PER_BLOCK-1 && global_index.x < matrix_dim.width-1) {
-      if (cutout_matrix[GLOBAL_INT_INDEX + 1] == 'D') {
-        cutout_matrix[GLOBAL_INT_INDEX + 1] = 'A';
-        *done = 0;
-      }
-    }
+  if (local_index.y == 0 && 0 < global_index.y ||
+      local_index.y == MATRIX_SIZE_PER_BLOCK-1 && global_index.y < matrix_dim.height-1 ||
+      local_index.x == 0 && 0 < global_index.x ||
+      local_index.x == MATRIX_SIZE_PER_BLOCK-1 && global_index.x < matrix_dim.width-1) {
+      cutout_algorithm_core(global_index, cutout_matrix, matrix_dim, done);
   }
 }
 
