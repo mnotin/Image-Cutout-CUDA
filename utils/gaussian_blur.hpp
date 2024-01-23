@@ -4,12 +4,12 @@
 #include "../main.hpp"
 
 namespace ProcessingUnitDevice {
-  void gaussian_blur(unsigned char *h_matrix, Dim matrix_dim);
+  void gaussian_blur(unsigned char *h_matrix, dim3 matrix_dim);
 }
 
 
 namespace ProcessingUnitHost {
-  void gaussian_blur(unsigned char *matrix, Dim matrix_dim);
+  void gaussian_blur(unsigned char *matrix, dim3 matrix_dim);
 }
 
 #endif // GAUSSIAN_BLUR_HPP

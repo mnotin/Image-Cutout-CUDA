@@ -18,12 +18,8 @@ void test_sobel_feldman(char *filename, int2 start_pixel, ProcessingUnit process
   float *angle_image = new float[rgb_image->width * rgb_image->height];
   RGBImage *edge_color_image = readPPM(filename);
 
-  Dim rgb_image_dim;
-  rgb_image_dim.width = rgb_image->width;
-  rgb_image_dim.height = rgb_image->height;
-  Dim gray_image_dim;
-  gray_image_dim.width = gray_image->width;
-  gray_image_dim.height = gray_image->height;
+  dim3 rgb_image_dim(rgb_image->width, rgb_image->height);
+  dim3 gray_image_dim(gray_image->width, gray_image->height);
 
   if (rgb_image == NULL) {
     std::cout << "Error reading the image" << std::endl;
@@ -91,12 +87,8 @@ void test_canny(char *filename, int2 start_pixel, int canny_min,
   float *angle_image = new float[rgb_image->width * rgb_image->height];
   RGBImage *edge_color_image = readPPM(filename);
 
-  Dim rgb_image_dim;
-  rgb_image_dim.width = rgb_image->width;
-  rgb_image_dim.height = rgb_image->height;
-  Dim gray_image_dim;
-  gray_image_dim.width = gray_image->width;
-  gray_image_dim.height = gray_image->height;
+  dim3 rgb_image_dim(rgb_image->width, rgb_image->height);
+  dim3 gray_image_dim(gray_image->width, gray_image->height);
   
   if (rgb_image == NULL) {
     std::cout << "Error reading the image" << std::endl;

@@ -3,29 +3,29 @@
 #include "rgb_to_gray.hpp"
 #include "../main.hpp"
 
-__global__ void rgb_to_gray_kernel(unsigned char *rgb_image, unsigned char *gray_image, Dim image_dim) {
+__global__ void rgb_to_gray_kernel(unsigned char *rgb_image, unsigned char *gray_image, dim3 image_dim) {
   int2 index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
 
 
-  gray_image[index.y*image_dim.width + index.x] = rgb_to_gray_core(index, rgb_image, image_dim);
+  gray_image[index.y*image_dim.x + index.x] = rgb_to_gray_core(index, rgb_image, image_dim);
 }
 
-__device__ __host__ unsigned char rgb_to_gray_core(int2 index, unsigned char *rgb_image, Dim image_dim) {
+__device__ __host__ unsigned char rgb_to_gray_core(int2 index, unsigned char *rgb_image, dim3 image_dim) {
   unsigned char r = 0, g = 0, b = 0;
 
-  if (index.y*image_dim.width+index.x < image_dim.width * image_dim.height) {
-    r = rgb_image[3 * (index.y*image_dim.width + index.x)];
-    g = rgb_image[3 * (index.y*image_dim.width + index.x) + 1];
-    b = rgb_image[3 * (index.y*image_dim.width + index.x) + 2];
+  if (index.y*image_dim.x+index.x < image_dim.x * image_dim.y) {
+    r = rgb_image[3 * (index.y*image_dim.x + index.x)];
+    g = rgb_image[3 * (index.y*image_dim.x + index.x) + 1];
+    b = rgb_image[3 * (index.y*image_dim.x + index.x) + 2];
   }
 
   return (0.21 * r + 0.71 * g + 0.07 * b);
 }
 
 void ProcessingUnitDevice::rgb_to_gray(RGBImage *h_rgb_image, GrayImage *h_gray_image) {
-  Dim rgb_image_dim;
-  rgb_image_dim.width = h_rgb_image->width;
-  rgb_image_dim.height = h_rgb_image->height;
+  dim3 rgb_image_dim;
+  rgb_image_dim.x = h_rgb_image->width;
+  rgb_image_dim.y = h_rgb_image->height;
 
   // Allocating device memory
   unsigned char *d_rgb_image;
@@ -52,9 +52,9 @@ void ProcessingUnitDevice::rgb_to_gray(RGBImage *h_rgb_image, GrayImage *h_gray_
 }
 
 void ProcessingUnitHost::rgb_to_gray(RGBImage *rgb_image, GrayImage *gray_image) {
-  Dim gray_image_dim;
-  gray_image_dim.width = gray_image->width;
-  gray_image_dim.height = gray_image->height;
+  dim3 gray_image_dim;
+  gray_image_dim.x = gray_image->width;
+  gray_image_dim.y = gray_image->height;
 
   for (int i = 0; i < gray_image->height; i++) {
     for (int j = 0; j < gray_image->width; j++) {

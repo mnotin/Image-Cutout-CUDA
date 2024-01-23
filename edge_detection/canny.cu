@@ -4,7 +4,7 @@
 #include "../main.hpp"
 #include "canny.hpp"
 
-void ProcessingUnitDevice::canny(unsigned char *h_gradient_matrix, float *h_angle_matrix, Dim matrix_dim, int canny_min, int canny_max) {
+void ProcessingUnitDevice::canny(unsigned char *h_gradient_matrix, float *h_angle_matrix, dim3 matrix_dim, int canny_min, int canny_max) {
   int h_done = 0;
 
   unsigned char *d_gradient_matrix;
@@ -12,17 +12,17 @@ void ProcessingUnitDevice::canny(unsigned char *h_gradient_matrix, float *h_angl
   unsigned char *d_ht_matrix;
   int *d_done;
 
-  cudaMalloc(&d_gradient_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
-  cudaMalloc(&d_angle_matrix, matrix_dim.width * matrix_dim.height * sizeof(float));
-  cudaMalloc(&d_ht_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char));
+  cudaMalloc(&d_gradient_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char));
+  cudaMalloc(&d_angle_matrix, matrix_dim.x * matrix_dim.y * sizeof(float));
+  cudaMalloc(&d_ht_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char));
   cudaMalloc(&d_done, sizeof(int));
   
-  cudaMemcpy(d_gradient_matrix, h_gradient_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_angle_matrix, h_angle_matrix, matrix_dim.width * matrix_dim.height * sizeof(float), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_gradient_matrix, h_gradient_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_angle_matrix, h_angle_matrix, matrix_dim.x * matrix_dim.y * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(d_done, &h_done, sizeof(int), cudaMemcpyHostToDevice);
 
   dim3 threads = dim3(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
-  dim3 blocks = dim3(matrix_dim.width/MATRIX_SIZE_PER_BLOCK, matrix_dim.height/MATRIX_SIZE_PER_BLOCK);
+  dim3 blocks = dim3(matrix_dim.x/MATRIX_SIZE_PER_BLOCK, matrix_dim.y/MATRIX_SIZE_PER_BLOCK);
   non_maximum_suppression_kernel<<<blocks, threads>>>(d_gradient_matrix, d_angle_matrix, matrix_dim);
   histeresis_thresholding_init_kernel<<<blocks, threads>>>(d_gradient_matrix, d_ht_matrix, matrix_dim, canny_min, canny_max);
   while (h_done == 0) {
@@ -33,59 +33,59 @@ void ProcessingUnitDevice::canny(unsigned char *h_gradient_matrix, float *h_angl
   }
   histeresis_thresholding_end_kernel<<<blocks, threads>>>(d_gradient_matrix, d_ht_matrix, matrix_dim);
 
-  cudaMemcpy(h_gradient_matrix, d_gradient_matrix, matrix_dim.width * matrix_dim.height * sizeof(unsigned char), cudaMemcpyDeviceToHost);
+  cudaMemcpy(h_gradient_matrix, d_gradient_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyDeviceToHost);
 
   cudaFree(d_gradient_matrix);
   cudaFree(d_angle_matrix);
   cudaFree(d_done);
 }
 
-void ProcessingUnitHost::canny(unsigned char *gradient_matrix, float *angle_matrix, Dim matrix_dim, int canny_min, int canny_max) {
+void ProcessingUnitHost::canny(unsigned char *gradient_matrix, float *angle_matrix, dim3 matrix_dim, int canny_min, int canny_max) {
   int done = 0;
-  unsigned char ht_matrix[matrix_dim.width * matrix_dim.height];
-  unsigned char gradient_matrix_buffer[matrix_dim.width * matrix_dim.height];
+  unsigned char ht_matrix[matrix_dim.x * matrix_dim.y];
+  unsigned char gradient_matrix_buffer[matrix_dim.x * matrix_dim.y];
   int2 index;
   
-  for (index.y = 0; index.y < matrix_dim.height; index.y++) {
-    for (index.x = 0; index.x < matrix_dim.width; index.x++) {
-      gradient_matrix_buffer[index.y*matrix_dim.width + index.x] = gradient_matrix[index.y*matrix_dim.width + index.x];
+  for (index.y = 0; index.y < matrix_dim.y; index.y++) {
+    for (index.x = 0; index.x < matrix_dim.x; index.x++) {
+      gradient_matrix_buffer[index.y*matrix_dim.x + index.x] = gradient_matrix[index.y*matrix_dim.x + index.x];
     }
   }
-  for (index.y = 0; index.y < matrix_dim.height; index.y++) {
-    for (index.x = 0; index.x < matrix_dim.width; index.x++) {
-      gradient_matrix_buffer[index.y*matrix_dim.width + index.x] = non_maximum_suppression_core(index, gradient_matrix, angle_matrix, matrix_dim);
+  for (index.y = 0; index.y < matrix_dim.y; index.y++) {
+    for (index.x = 0; index.x < matrix_dim.x; index.x++) {
+      gradient_matrix_buffer[index.y*matrix_dim.x + index.x] = non_maximum_suppression_core(index, gradient_matrix, angle_matrix, matrix_dim);
     }
   }
-  for (index.y = 0; index.y < matrix_dim.height; index.y++) {
-    for (index.x = 0; index.x < matrix_dim.width; index.x++) {
-      gradient_matrix[index.y*matrix_dim.width + index.x] = gradient_matrix_buffer[index.y*matrix_dim.width + index.x];
+  for (index.y = 0; index.y < matrix_dim.y; index.y++) {
+    for (index.x = 0; index.x < matrix_dim.x; index.x++) {
+      gradient_matrix[index.y*matrix_dim.x + index.x] = gradient_matrix_buffer[index.y*matrix_dim.x + index.x];
     }
   }
   
-  for (index.y = 0; index.y < matrix_dim.height; index.y++) {
-    for (index.x = 0; index.x < matrix_dim.width; index.x++) {
-      ht_matrix[index.y*matrix_dim.width + index.x] = histeresis_thresholding_init_core(index, gradient_matrix, matrix_dim, canny_min, canny_max);
+  for (index.y = 0; index.y < matrix_dim.y; index.y++) {
+    for (index.x = 0; index.x < matrix_dim.x; index.x++) {
+      ht_matrix[index.y*matrix_dim.x + index.x] = histeresis_thresholding_init_core(index, gradient_matrix, matrix_dim, canny_min, canny_max);
     }
   }
 
   while (done == 0) {
     done = 1;
 
-    for (index.y = 0; index.y < matrix_dim.height; index.y++) {
-      for (index.x = 0; index.x < matrix_dim.width; index.x++) {
+    for (index.y = 0; index.y < matrix_dim.y; index.y++) {
+      for (index.x = 0; index.x < matrix_dim.x; index.x++) {
         histeresis_thresholding_loop_core(index, ht_matrix, matrix_dim, &done);
       }
     }
   }
 
-  for (index.y = 0; index.y < matrix_dim.height; index.y++) {
-    for (index.x = 0; index.x < matrix_dim.width; index.x++) {
-      gradient_matrix[index.y*matrix_dim.width + index.x] = histeresis_thresholding_end_core(index, ht_matrix, matrix_dim);
+  for (index.y = 0; index.y < matrix_dim.y; index.y++) {
+    for (index.x = 0; index.x < matrix_dim.x; index.x++) {
+      gradient_matrix[index.y*matrix_dim.x + index.x] = histeresis_thresholding_end_core(index, ht_matrix, matrix_dim);
     }
   }
 }
 
-__global__ void non_maximum_suppression_kernel(unsigned char *gradient_matrix, float *angle_matrix, Dim matrix_dim) {
+__global__ void non_maximum_suppression_kernel(unsigned char *gradient_matrix, float *angle_matrix, dim3 matrix_dim) {
   int2 index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
   
   unsigned char final_value = non_maximum_suppression_core(index, gradient_matrix, angle_matrix, matrix_dim);
@@ -93,40 +93,40 @@ __global__ void non_maximum_suppression_kernel(unsigned char *gradient_matrix, f
   // Avoid race condition with gradient_matrix wich is read before and written after
   __syncthreads(); 
   
-  gradient_matrix[index.y*matrix_dim.width + index.x] = final_value; 
+  gradient_matrix[index.y*matrix_dim.x + index.x] = final_value; 
 }
 
-__device__ __host__ unsigned char non_maximum_suppression_core(int2 index, unsigned char *gradient_matrix, float *angle_matrix, Dim matrix_dim) {
-  const int INT_INDEX = index.y*matrix_dim.width + index.x;
+__device__ __host__ unsigned char non_maximum_suppression_core(int2 index, unsigned char *gradient_matrix, float *angle_matrix, dim3 matrix_dim) {
+  const int INT_INDEX = index.y*matrix_dim.x + index.x;
   const float ANGLE = angle_matrix[INT_INDEX] + M_PI_2;
   unsigned char final_value = gradient_matrix[INT_INDEX];
 
   if (get_color_canny(ANGLE) == 'Y') {
     // Vertical gradient direction : Yellow
-    if (0 < index.y && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - matrix_dim.width] && 
-          get_color_canny(angle_matrix[INT_INDEX - matrix_dim.width] + M_PI_2) == 'Y') {
+    if (0 < index.y && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - matrix_dim.x] && 
+          get_color_canny(angle_matrix[INT_INDEX - matrix_dim.x] + M_PI_2) == 'Y') {
       final_value = 0;
-    } else if (index.y < matrix_dim.width - 1 && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + matrix_dim.width] &&
-        get_color_canny(angle_matrix[INT_INDEX + matrix_dim.width] + M_PI_2) == 'Y') {
+    } else if (index.y < matrix_dim.x - 1 && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + matrix_dim.x] &&
+        get_color_canny(angle_matrix[INT_INDEX + matrix_dim.x] + M_PI_2) == 'Y') {
       final_value = 0;
     }
   } else if (get_color_canny(ANGLE) == 'G') {
     // Top right gradient direction : Green
-    if (index.x < matrix_dim.width-1 && 0 < index.y && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - matrix_dim.width + 1] &&
-      get_color_canny(angle_matrix[INT_INDEX - matrix_dim.width + 1] + M_PI_2) == 'G') {
+    if (index.x < matrix_dim.x-1 && 0 < index.y && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - matrix_dim.x + 1] &&
+      get_color_canny(angle_matrix[INT_INDEX - matrix_dim.x + 1] + M_PI_2) == 'G') {
       final_value = 0;
-    } else if (0 < index.x && index.y < matrix_dim.height-1 && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + matrix_dim.width - 1] &&
-      get_color_canny(angle_matrix[INT_INDEX - matrix_dim.width - 1] + M_PI_2) == 'G') {
+    } else if (0 < index.x && index.y < matrix_dim.y-1 && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + matrix_dim.x - 1] &&
+      get_color_canny(angle_matrix[INT_INDEX - matrix_dim.x - 1] + M_PI_2) == 'G') {
       final_value = 0;
     }
   } else if (get_color_canny(ANGLE) == 'R') {
     // Top left gradient direction : Red
-    if (0 < index.x && 0 < index.y && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - matrix_dim.width - 1] &&
-      get_color_canny(angle_matrix[INT_INDEX - matrix_dim.width - 1] + M_PI_2) == 'R') {
+    if (0 < index.x && 0 < index.y && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - matrix_dim.x - 1] &&
+      get_color_canny(angle_matrix[INT_INDEX - matrix_dim.x - 1] + M_PI_2) == 'R') {
       final_value = 0;
-    } else if (index.x < matrix_dim.width-1 && index.y < matrix_dim.height-1 &&
-      gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + matrix_dim.width + 1] &&
-      get_color_canny(angle_matrix[INT_INDEX + matrix_dim.width + 1] + M_PI_2) == 'R') { 
+    } else if (index.x < matrix_dim.x-1 && index.y < matrix_dim.y-1 &&
+      gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + matrix_dim.x + 1] &&
+      get_color_canny(angle_matrix[INT_INDEX + matrix_dim.x + 1] + M_PI_2) == 'R') { 
       final_value = 0;
     }
   } else if (get_color_canny(ANGLE) == 'B')  {
@@ -134,7 +134,7 @@ __device__ __host__ unsigned char non_maximum_suppression_core(int2 index, unsig
     if (0 < index.x && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - 1] &&
       get_color_canny(angle_matrix[INT_INDEX - 1] + M_PI_2) == 'B') {
       final_value = 0;
-    } else if (index.x < matrix_dim.width - 1 && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + 1] &&
+    } else if (index.x < matrix_dim.x - 1 && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + 1] &&
       get_color_canny(angle_matrix[INT_INDEX + 1] + M_PI_2) == 'B') {
       final_value = 0;
     }
@@ -143,15 +143,15 @@ __device__ __host__ unsigned char non_maximum_suppression_core(int2 index, unsig
   return final_value; 
 }
 
-__global__ void histeresis_thresholding_init_kernel(unsigned char *gradient_matrix, unsigned char *ht_matrix, Dim matrix_dim, int canny_min, int canny_max) {
+__global__ void histeresis_thresholding_init_kernel(unsigned char *gradient_matrix, unsigned char *ht_matrix, dim3 matrix_dim, int canny_min, int canny_max) {
   int2 index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
 
-  ht_matrix[index.y*matrix_dim.width + index.x] =
+  ht_matrix[index.y*matrix_dim.x + index.x] =
     histeresis_thresholding_init_core(index, gradient_matrix, matrix_dim, canny_min, canny_max);
 }
 
-__device__ __host__ unsigned char histeresis_thresholding_init_core(int2 index, unsigned char *gradient_matrix, Dim matrix_dim, int canny_min, int canny_max) {
-  const int INT_INDEX = index.y*matrix_dim.width + index.x;
+__device__ __host__ unsigned char histeresis_thresholding_init_core(int2 index, unsigned char *gradient_matrix, dim3 matrix_dim, int canny_min, int canny_max) {
+  const int INT_INDEX = index.y*matrix_dim.x + index.x;
   unsigned char result;
 
   if (gradient_matrix[INT_INDEX] < canny_min) {
@@ -193,41 +193,41 @@ __global__ void histeresis_thresholding_loop_kernel(unsigned char *ht_matrix, Di
 /**
  * Mark pending pixels connected to a marked pixel.
  */
-__device__ __host__ void histeresis_thresholding_loop_core(int2 index, unsigned char *ht_matrix, Dim matrix_dim, int *done) {
-  const int INT_INDEX = index.y*matrix_dim.width + index.x; 
+__device__ __host__ void histeresis_thresholding_loop_core(int2 index, unsigned char *ht_matrix, dim3 matrix_dim, int *done) {
+  const int INT_INDEX = index.y*matrix_dim.x + index.x; 
 
   if (ht_matrix[INT_INDEX] == 'P') {
     // Pending pixel
 
-    if (0 < index.x && 0 < index.y && ht_matrix[(index.y-1)*matrix_dim.width + index.x-1] == 'M') {
+    if (0 < index.x && 0 < index.y && ht_matrix[(index.y-1)*matrix_dim.x + index.x-1] == 'M') {
       // Top Left
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
-    } else if (0 < index.y && ht_matrix[(index.y-1)*matrix_dim.width + index.x] == 'M') {
+    } else if (0 < index.y && ht_matrix[(index.y-1)*matrix_dim.x + index.x] == 'M') {
       // Top
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
-    } else if (index.x < matrix_dim.width-1 && 0 < index.y && ht_matrix[(index.y-1)*matrix_dim.width + index.x+1] == 'M') {
+    } else if (index.x < matrix_dim.x-1 && 0 < index.y && ht_matrix[(index.y-1)*matrix_dim.x + index.x+1] == 'M') {
       // Top Right
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
-    } else if (0 < index.x && ht_matrix[index.y*matrix_dim.width + index.x-1] == 'M') {
+    } else if (0 < index.x && ht_matrix[index.y*matrix_dim.x + index.x-1] == 'M') {
       // Left 
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
-    } else if (index.x < matrix_dim.width-1 && ht_matrix[index.y*matrix_dim.width + index.x+1] == 'M') {
+    } else if (index.x < matrix_dim.x-1 && ht_matrix[index.y*matrix_dim.x+ index.x+1] == 'M') {
       // Right
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
-    } else if (0 < index.x && index.y < matrix_dim.height-1 && ht_matrix[(index.y+1)*matrix_dim.width + index.x-1] == 'M') {
+    } else if (0 < index.x && index.y < matrix_dim.y-1 && ht_matrix[(index.y+1)*matrix_dim.x + index.x-1] == 'M') {
       // Bottom Left
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
-    } else if (index.y < matrix_dim.height-1 && ht_matrix[(index.y+1)*matrix_dim.width + index.x] == 'M') {
+    } else if (index.y < matrix_dim.y-1 && ht_matrix[(index.y+1)*matrix_dim.x + index.x] == 'M') {
       // Bottom
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
-    } else if (index.x < matrix_dim.width-1 && index.y < matrix_dim.height-1 && ht_matrix[(index.y+1)*matrix_dim.width + index.x+1] == 'M') {
+    } else if (index.x < matrix_dim.x-1 && index.y < matrix_dim.y-1 && ht_matrix[(index.y+1)*matrix_dim.x + index.x+1] == 'M') {
       // Bottom Left
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
@@ -235,14 +235,14 @@ __device__ __host__ void histeresis_thresholding_loop_core(int2 index, unsigned 
   }
 }
 
-__global__ void histeresis_thresholding_end_kernel(unsigned char *gradient_matrix, unsigned char *ht_matrix, Dim matrix_dim) {
+__global__ void histeresis_thresholding_end_kernel(unsigned char *gradient_matrix, unsigned char *ht_matrix, dim3 matrix_dim) {
   int2 index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
 
-  gradient_matrix[index.y*matrix_dim.width + index.x] = histeresis_thresholding_end_core(index, ht_matrix, matrix_dim);
+  gradient_matrix[index.y*matrix_dim.x + index.x] = histeresis_thresholding_end_core(index, ht_matrix, matrix_dim);
 }
 
-__device__ __host__ unsigned char histeresis_thresholding_end_core(int2 index, unsigned char *ht_matrix, Dim matrix_dim) {
-  const int INT_INDEX = index.y*matrix_dim.width + index.x;   
+__device__ __host__ unsigned char histeresis_thresholding_end_core(int2 index, unsigned char *ht_matrix, dim3 matrix_dim) {
+  const int INT_INDEX = index.y*matrix_dim.x + index.x;   
   unsigned char result;
 
   if (ht_matrix[INT_INDEX] == 'P') {
