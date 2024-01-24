@@ -154,7 +154,7 @@ __device__ __host__ unsigned char non_maximum_suppression_core(int2 index, unsig
 __global__ void histeresis_thresholding_init_kernel(unsigned char *gradient_matrix, char *ht_matrix, dim3 matrix_dim, int canny_min, int canny_max) {
   int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
 
-  if (global_index.x < matrix_dim.x && global_index.y < global_index.y) {
+  if (global_index.x < matrix_dim.x && global_index.y < matrix_dim.y) {
     ht_matrix[global_index.y*matrix_dim.x + global_index.x] =
       histeresis_thresholding_init_core(global_index, gradient_matrix, matrix_dim, canny_min, canny_max);
   }

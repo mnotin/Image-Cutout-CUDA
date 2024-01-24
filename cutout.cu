@@ -6,9 +6,9 @@
 #include "main.hpp"
 
 void ProcessingUnitDevice::cutout(unsigned char *h_rgb_image, unsigned char *h_edge_matrix, dim3 matrix_dim, int2 start_pixel, int threshold) {
-  dim3 threads = dim3(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
-  dim3 blocks = dim3(matrix_dim.x/MATRIX_SIZE_PER_BLOCK, matrix_dim.y/MATRIX_SIZE_PER_BLOCK);
-
+  dim3 threads(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
+  dim3 blocks(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
+  
   int h_done = 0;
   dim3 macro_matrix_dim(blocks.x, blocks.y);
 
@@ -117,16 +117,20 @@ __global__ void draw_edges_on_cutout_matrix_kernel(unsigned char *edge_matrix, c
   }
   __syncthreads();
   
-  char result = draw_edges_on_cutout_matrix_core(global_index, edge_matrix, matrix_dim, start_pixel, threshold);
-  micro_cutout_matrix[global_index.y*matrix_dim.x + global_index.x] = result;
+  if (global_index.x < matrix_dim.x && global_index.y < matrix_dim.y) {
+    char result = draw_edges_on_cutout_matrix_core(global_index, edge_matrix, matrix_dim, start_pixel, threshold);
+    micro_cutout_matrix[global_index.y*matrix_dim.x + global_index.x] = result;
 
-  if (result == 'B') {
-    // This block contains at least one border
-    block_contains_edge = true;
-  } else if (result == 'M') {
-    block_contains_start_pixel = true;
+    if (result == 'B') {
+      // This block contains at least one border
+      block_contains_edge = true;
+    } else if (result == 'M') {
+      block_contains_start_pixel = true;
+    }
   }
+
   __syncthreads();
+
   if (local_index.x == 0 && local_index.y == 0) {
     if (block_contains_edge) {
       macro_cutout_matrix[blockIdx.y*gridDim.x + blockIdx.x] = 'B';
@@ -248,15 +252,19 @@ __global__ void apply_macro_to_micro_cutout_matrix_kernel(char *macro_cutout_mat
 
   __syncthreads();
 
-  if (macro_matrix_content == 'M') {
-    micro_cutout_matrix[global_index.y*micro_matrix_dim.x + global_index.x] = 'M';
+  if (global_index.x < micro_matrix_dim.x && global_index.y < micro_matrix_dim.y) {
+    if (macro_matrix_content == 'M') {
+      micro_cutout_matrix[global_index.y*micro_matrix_dim.x + global_index.x] = 'M';
+    }
   }
 }
 
 __global__ void apply_cutout_kernel(char *cutout_matrix, unsigned char *output_image, dim3 image_dim, int2 start_pixel) { 
-  int2 index  = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
-  
-  apply_cutout_core(index, cutout_matrix, output_image, image_dim, start_pixel);
+  int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
+ 
+  if (global_index.x < image_dim.x && global_index.y < image_dim.y) {
+    apply_cutout_core(global_index, cutout_matrix, output_image, image_dim, start_pixel);
+  }
 }
 
 __device__ __host__ void apply_cutout_core(int2 index, char *cutout_matrix, unsigned char *output_image, dim3 image_dim, int2 start_pixel) {
