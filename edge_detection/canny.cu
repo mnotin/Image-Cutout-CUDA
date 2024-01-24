@@ -5,6 +5,8 @@
 #include "canny.hpp"
 
 void ProcessingUnitDevice::canny(unsigned char *h_gradient_matrix, float *h_angle_matrix, dim3 matrix_dim, int canny_min, int canny_max) {
+  dim3 threads(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
+  dim3 blocks(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
   int h_done = 0;
 
   unsigned char *d_gradient_matrix;
@@ -21,8 +23,6 @@ void ProcessingUnitDevice::canny(unsigned char *h_gradient_matrix, float *h_angl
   cudaMemcpy(d_angle_matrix, h_angle_matrix, matrix_dim.x * matrix_dim.y * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(d_done, &h_done, sizeof(int), cudaMemcpyHostToDevice);
 
-  dim3 threads = dim3(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
-  dim3 blocks = dim3(matrix_dim.x/MATRIX_SIZE_PER_BLOCK, matrix_dim.y/MATRIX_SIZE_PER_BLOCK);
   non_maximum_suppression_kernel<<<blocks, threads>>>(d_gradient_matrix, d_angle_matrix, matrix_dim);
   histeresis_thresholding_init_kernel<<<blocks, threads>>>(d_gradient_matrix, d_ht_matrix, matrix_dim, canny_min, canny_max);
   while (h_done == 0) {
@@ -152,10 +152,12 @@ __device__ __host__ unsigned char non_maximum_suppression_core(int2 index, unsig
 }
 
 __global__ void histeresis_thresholding_init_kernel(unsigned char *gradient_matrix, char *ht_matrix, dim3 matrix_dim, int canny_min, int canny_max) {
-  int2 index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
+  int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
 
-  ht_matrix[index.y*matrix_dim.x + index.x] =
-    histeresis_thresholding_init_core(index, gradient_matrix, matrix_dim, canny_min, canny_max);
+  if (global_index.x < matrix_dim.x && global_index.y < global_index.y) {
+    ht_matrix[global_index.y*matrix_dim.x + global_index.x] =
+      histeresis_thresholding_init_core(global_index, gradient_matrix, matrix_dim, canny_min, canny_max);
+  }
 }
 
 __device__ __host__ char histeresis_thresholding_init_core(int2 index, unsigned char *gradient_matrix, dim3 matrix_dim, int canny_min, int canny_max) {
@@ -181,7 +183,10 @@ __global__ void histeresis_thresholding_loop_kernel(char *ht_matrix, dim3 matrix
 
   __shared__ int shared_done;
   __shared__ char shared_ht_matrix[MATRIX_SIZE_PER_BLOCK*MATRIX_SIZE_PER_BLOCK];
-  shared_ht_matrix[local_index.y*MATRIX_SIZE_PER_BLOCK + local_index.x] = ht_matrix[global_index.y*matrix_dim.x + global_index.x];
+
+  if (global_index.x < matrix_dim.x && global_index.y < matrix_dim.y) {
+    shared_ht_matrix[local_index.y*MATRIX_SIZE_PER_BLOCK + local_index.x] = ht_matrix[global_index.y*matrix_dim.x + global_index.x];
+  }
 
   if (local_index.x == 0 && local_index.y == 0) {
     shared_done = 0;
@@ -197,8 +202,10 @@ __global__ void histeresis_thresholding_loop_kernel(char *ht_matrix, dim3 matrix
     }
     
     __syncthreads();
-
-    histeresis_thresholding_loop_core(local_index, shared_ht_matrix, shared_matrix_dim, &shared_done);
+    
+    if (global_index.x < matrix_dim.x && global_index.y < matrix_dim.y) {
+      histeresis_thresholding_loop_core(local_index, shared_ht_matrix, shared_matrix_dim, &shared_done);
+    }
 
     __syncthreads();
 
@@ -210,10 +217,12 @@ __global__ void histeresis_thresholding_loop_kernel(char *ht_matrix, dim3 matrix
   }
 
   __syncthreads();
- 
-  // Write the result back to global memory
-  ht_matrix[global_index.y*matrix_dim.x + global_index.x] =
-    shared_ht_matrix[local_index.y*MATRIX_SIZE_PER_BLOCK + local_index.x];
+
+  if (global_index.x < matrix_dim.x && global_index.y < matrix_dim.y) {
+    // Write the result back to global memory
+    ht_matrix[global_index.y*matrix_dim.x + global_index.x] =
+      shared_ht_matrix[local_index.y*MATRIX_SIZE_PER_BLOCK + local_index.x];
+  }
 }
 
 /**
@@ -264,19 +273,23 @@ __device__ __host__ void histeresis_thresholding_loop_core(int2 index, char *ht_
 __global__ void ProcessingUnitDevice::Canny::transfer_edges_between_blocks_kernel(char *ht_matrix, dim3 matrix_dim, int *done) {
   int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
   int2 local_index = make_int2(threadIdx.x, threadIdx.y);
-
-  if (local_index.y == 0 && 0 < global_index.y ||
-      local_index.y == MATRIX_SIZE_PER_BLOCK-1 && global_index.y < matrix_dim.y-1 ||
-      local_index.x == 0 && 0 < global_index.x ||
-      local_index.x == MATRIX_SIZE_PER_BLOCK-1 && global_index.x < matrix_dim.x-1) {
-      histeresis_thresholding_loop_core(global_index, ht_matrix, matrix_dim, done);
+  
+  if (global_index.x < matrix_dim.x && global_index.y < matrix_dim.y) {
+    if (local_index.y == 0 && 0 < global_index.y ||
+        local_index.y == MATRIX_SIZE_PER_BLOCK-1 && global_index.y < matrix_dim.y-1 ||
+        local_index.x == 0 && 0 < global_index.x ||
+        local_index.x == MATRIX_SIZE_PER_BLOCK-1 && global_index.x < matrix_dim.x-1) {
+        histeresis_thresholding_loop_core(global_index, ht_matrix, matrix_dim, done);
+    }
   }
 }
 
 __global__ void histeresis_thresholding_end_kernel(unsigned char *gradient_matrix, char *ht_matrix, dim3 matrix_dim) {
-  int2 index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
-
-  gradient_matrix[index.y*matrix_dim.x + index.x] = histeresis_thresholding_end_core(index, ht_matrix, matrix_dim);
+  int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
+  
+  if (global_index.x < matrix_dim.x && global_index.y < matrix_dim.y) {
+    gradient_matrix[global_index.y*matrix_dim.x + global_index.x] = histeresis_thresholding_end_core(global_index, ht_matrix, matrix_dim);
+  }
 }
 
 __device__ __host__ unsigned char histeresis_thresholding_end_core(int2 index, char *ht_matrix, dim3 matrix_dim) {
