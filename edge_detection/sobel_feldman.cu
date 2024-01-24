@@ -17,8 +17,9 @@ const float SOBEL_VERTICAL_KERNEL[KERNEL_SIZE*KERNEL_SIZE] = { 1,  2,  1,
  * The picture should have been smoothed and converted to grayscale prior to being passed over the Sobel-Feldman operator. 
  **/
 void ProcessingUnitDevice::sobel_feldman(unsigned char *h_input_matrix, unsigned char *h_gradient_matrix, float *h_angle_matrix, dim3 matrix_dim) {
-  dim3 threads = dim3(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
-  dim3 blocks = dim3(matrix_dim.x/MATRIX_SIZE_PER_BLOCK, matrix_dim.y/MATRIX_SIZE_PER_BLOCK);
+  dim3 threads(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
+  dim3 blocks(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
+  std::cout << "Nombre de blocs lancés: " << blocks.x << " " << blocks.y << std::endl;
 
   unsigned char *d_input_matrix;
   unsigned char *d_gradient_matrix;
@@ -38,24 +39,20 @@ void ProcessingUnitDevice::sobel_feldman(unsigned char *h_input_matrix, unsigned
 
   // Horizontal gradient
   cudaMemcpy(d_kernel, SOBEL_HORIZONTAL_KERNEL, KERNEL_SIZE*KERNEL_SIZE * sizeof(int), cudaMemcpyHostToDevice);
-  std::cout << "Nombre de blocs lancés: " << blocks.x << " " << blocks.y << std::endl;
   convolution_kernel<<<blocks, threads>>>(d_input_matrix, d_horizontal_gradient, matrix_dim, d_kernel, 3);
-  cudaDeviceSynchronize();
 
   // Vertical gradient
   cudaMemcpy(d_kernel, SOBEL_VERTICAL_KERNEL, KERNEL_SIZE*KERNEL_SIZE * sizeof(int), cudaMemcpyHostToDevice);
   convolution_kernel<<<blocks, threads>>>(d_input_matrix, d_vertical_gradient, matrix_dim, d_kernel, KERNEL_SIZE);
-  cudaDeviceSynchronize();
   
   // Global gradient
+  cudaDeviceSynchronize();
   global_gradient_kernel<<<blocks, threads>>>(d_gradient_matrix, d_horizontal_gradient, d_vertical_gradient, matrix_dim); 
   cudaMemcpy(h_gradient_matrix, d_gradient_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyDeviceToHost);
-  cudaDeviceSynchronize();
  
   // Angle of the gradient
   angle_kernel<<<blocks, threads>>>(d_horizontal_gradient, d_vertical_gradient, d_angle_matrix, matrix_dim);
   cudaMemcpy(h_angle_matrix, d_angle_matrix, matrix_dim.x * matrix_dim.y * sizeof(float), cudaMemcpyDeviceToHost);
-  cudaDeviceSynchronize();
 
   cudaFree(d_input_matrix);
   cudaFree(d_gradient_matrix);
@@ -107,9 +104,11 @@ void ProcessingUnitHost::sobel_feldman(unsigned char *input_matrix, unsigned cha
  * Computes the global gradient of an image after being processed by the Sobel-Feldman operator.
  **/
 __global__ void global_gradient_kernel(unsigned char *output_matrix, int *horizontal_edges, int *vertical_edges, dim3 matrix_dim) {
-  int2 index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
+  int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
 
-  output_matrix[index.y * matrix_dim.x + index.x] = global_gradient_core(index, horizontal_edges, vertical_edges, matrix_dim);
+  if (global_index.x < matrix_dim.x && global_index.y < matrix_dim.y) {
+    output_matrix[global_index.y*matrix_dim.x + global_index.x] = global_gradient_core(global_index, horizontal_edges, vertical_edges, matrix_dim);
+  }
 }
 
 __device__ __host__ unsigned char global_gradient_core(int2 index, int *horizontal_edges, int *vertical_edges, dim3 matrix_dim) {
@@ -122,9 +121,11 @@ __device__ __host__ unsigned char global_gradient_core(int2 index, int *horizont
 
 
 __global__ void angle_kernel(int *horizontal_gradient, int *vertical_gradient, float *angle_matrix, dim3 matrix_dim) {
-  int2 index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
+  int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
 
-  angle_matrix[index.y * matrix_dim.x + index.x] = angle_core(index, horizontal_gradient, vertical_gradient, matrix_dim); 
+  if (global_index.x < matrix_dim.x && global_index.y < matrix_dim.y) {
+    angle_matrix[global_index.y*matrix_dim.x + global_index.x] = angle_core(global_index, horizontal_gradient, vertical_gradient, matrix_dim); 
+  }
 }
 
 __device__ __host__ float angle_core(int2 index, int *horizontal_gradient, int *vertical_gradient, dim3 matrix_dim) {
@@ -137,6 +138,10 @@ __device__ __host__ float angle_core(int2 index, int *horizontal_gradient, int *
 
 
 void ProcessingUnitDevice::generate_edge_color(unsigned char *h_gradient_matrix, float *h_angle_matrix, unsigned char *h_output_image, dim3 matrix_dim) {
+  dim3 threads(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
+  dim3 blocks(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
+  std::cout << "Nombre de blocs lancés: " << blocks.x << " " << blocks.y << std::endl;
+
   unsigned char *d_gradient_matrix;
   float *d_angle_matrix;
   unsigned char *d_output_image;
@@ -149,9 +154,6 @@ void ProcessingUnitDevice::generate_edge_color(unsigned char *h_gradient_matrix,
   cudaMemcpy(d_angle_matrix, h_angle_matrix, matrix_dim.x * matrix_dim.y * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(d_output_image, h_output_image, 3 * matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyHostToDevice);
 
-  dim3 threads = dim3(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
-  dim3 blocks = dim3(matrix_dim.x/MATRIX_SIZE_PER_BLOCK, matrix_dim.y/MATRIX_SIZE_PER_BLOCK);
-  std::cout << "Nombre de blocs lancés: " << blocks.x << " " << blocks.y << std::endl;
   edge_color_kernel<<<blocks, threads>>>(d_gradient_matrix, d_angle_matrix, d_output_image, matrix_dim);
 
   cudaMemcpy(h_output_image, d_output_image, 3 * matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyDeviceToHost);
@@ -163,6 +165,7 @@ void ProcessingUnitDevice::generate_edge_color(unsigned char *h_gradient_matrix,
 
 void ProcessingUnitHost::generate_edge_color(unsigned char *gradient_matrix, float *angle_matrix, unsigned char *output_image, dim3 matrix_dim) {
   int2 index;
+
   for (index.y = 0; index.y < matrix_dim.y; index.y++) {
     for (index.x = 0; index.x < matrix_dim.x; index.x++) {
       edge_color_core(index, gradient_matrix, angle_matrix, output_image, matrix_dim);
@@ -174,9 +177,11 @@ void ProcessingUnitHost::generate_edge_color(unsigned char *gradient_matrix, flo
  * Give a color to edges depending on their direction.
  **/
 __global__ void edge_color_kernel(unsigned char *gradient_matrix, float *angle_matrix, unsigned char *output_image, dim3 image_dim) { 
-  int2 index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
+  int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
   
-  edge_color_core(index, gradient_matrix, angle_matrix, output_image, image_dim);
+  if (global_index.x < image_dim.x && global_index.y < image_dim.y) {
+    edge_color_core(global_index, gradient_matrix, angle_matrix, output_image, image_dim);
+  }
 }
 
 __device__ __host__ void edge_color_core(int2 index, unsigned char *gradient_matrix, float *angle_matrix, unsigned char *output_image, dim3 image_dim) { 
