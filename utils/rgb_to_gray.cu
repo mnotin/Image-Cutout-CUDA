@@ -23,9 +23,7 @@ __device__ __host__ unsigned char rgb_to_gray_core(int2 index, unsigned char *rg
 }
 
 void ProcessingUnitDevice::rgb_to_gray(RGBImage *h_rgb_image, GrayImage *h_gray_image) {
-  dim3 rgb_image_dim;
-  rgb_image_dim.x = h_rgb_image->width;
-  rgb_image_dim.y = h_rgb_image->height;
+  dim3 rgb_image_dim(h_rgb_image->width, h_rgb_image->height);
 
   // Allocating device memory
   unsigned char *d_rgb_image;
@@ -52,9 +50,7 @@ void ProcessingUnitDevice::rgb_to_gray(RGBImage *h_rgb_image, GrayImage *h_gray_
 }
 
 void ProcessingUnitHost::rgb_to_gray(RGBImage *rgb_image, GrayImage *gray_image) {
-  dim3 gray_image_dim;
-  gray_image_dim.x = gray_image->width;
-  gray_image_dim.y = gray_image->height;
+  dim3 gray_image_dim(gray_image->width, gray_image->height);
 
   for (int i = 0; i < gray_image->height; i++) {
     for (int j = 0; j < gray_image->width; j++) {

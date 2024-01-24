@@ -24,7 +24,6 @@ void ProcessingUnitDevice::cutout(unsigned char *h_rgb_image, unsigned char *h_e
   cudaMalloc(&d_micro_cutout_matrix, matrix_dim.x * matrix_dim.y * sizeof(char));
   cudaMalloc(&d_done, sizeof(int));
 
-  cudaMemcpy(d_rgb_image, h_rgb_image, 3 * matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyHostToDevice);
   cudaMemcpy(d_edge_matrix, h_edge_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyHostToDevice);
   
   draw_edges_on_cutout_matrix_kernel<<<blocks, threads>>>(
@@ -41,7 +40,7 @@ void ProcessingUnitDevice::cutout(unsigned char *h_rgb_image, unsigned char *h_e
     cudaMemcpy(d_done, &h_done, sizeof(int), cudaMemcpyHostToDevice);
     cutout_algorithm_kernel<<<blocks, threads>>>(d_macro_cutout_matrix, macro_matrix_dim, d_done);
     
-    transfer_edges_between_blocks_kernel<<<blocks, threads>>>(d_macro_cutout_matrix, macro_matrix_dim, d_done);
+    Cutout::transfer_edges_between_blocks_kernel<<<blocks, threads>>>(d_macro_cutout_matrix, macro_matrix_dim, d_done);
     cudaMemcpy(&h_done, d_done, sizeof(int), cudaMemcpyDeviceToHost);
   }
   
@@ -54,12 +53,12 @@ void ProcessingUnitDevice::cutout(unsigned char *h_rgb_image, unsigned char *h_e
     cudaMemcpy(d_done, &h_done, sizeof(int), cudaMemcpyHostToDevice);
     cutout_algorithm_kernel<<<blocks, threads>>>(d_micro_cutout_matrix, matrix_dim, d_done);
     
-    transfer_edges_between_blocks_kernel<<<blocks, threads>>>(d_micro_cutout_matrix, matrix_dim, d_done);
+    Cutout::transfer_edges_between_blocks_kernel<<<blocks, threads>>>(d_micro_cutout_matrix, matrix_dim, d_done);
     cudaMemcpy(&h_done, d_done, sizeof(int), cudaMemcpyDeviceToHost);
   }
   
+  cudaMemcpy(d_rgb_image, h_rgb_image, 3 * matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyHostToDevice);
   apply_cutout_kernel<<<blocks, threads>>>(d_micro_cutout_matrix, d_rgb_image, matrix_dim, start_pixel);
-
   cudaMemcpy(h_rgb_image, d_rgb_image, 3 * matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyDeviceToHost);
 
   cudaFree(d_rgb_image);
@@ -161,9 +160,7 @@ __global__ void cutout_algorithm_kernel(char *cutout_matrix, dim3 matrix_dim, in
   int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
   int2 local_index = make_int2(threadIdx.x, threadIdx.y);
 
-  dim3 shared_matrix_dim;
-  shared_matrix_dim.x = MATRIX_SIZE_PER_BLOCK;
-  shared_matrix_dim.y = MATRIX_SIZE_PER_BLOCK;
+  dim3 shared_matrix_dim(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
 
   __shared__ int shared_done;
   __shared__ char shared_cutout_matrix[MATRIX_SIZE_PER_BLOCK*MATRIX_SIZE_PER_BLOCK];
@@ -216,7 +213,7 @@ __device__ __host__ void cutout_algorithm_core(int2 index, char *cutout_matrix, 
   }
 }
 
-__global__ void transfer_edges_between_blocks_kernel(char *cutout_matrix, dim3 matrix_dim, int *done) {
+__global__ void ProcessingUnitDevice::Cutout::transfer_edges_between_blocks_kernel(char *cutout_matrix, dim3 matrix_dim, int *done) {
   int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
   int2 local_index = make_int2(threadIdx.x, threadIdx.y);
 
