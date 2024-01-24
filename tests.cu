@@ -11,12 +11,12 @@
 #include "edge_detection/sobel_feldman.hpp"
 #include "edge_detection/canny.hpp"
 
-void test_sobel_feldman(char *filename, int2 start_pixel, ProcessingUnit processing_unit) {
-  RGBImage *rgb_image = readPPM(filename);
+void test_sobel_feldman(std::string filename, int2 start_pixel, ProcessingUnit processing_unit) {
+  RGBImage *rgb_image = readPPM(filename.c_str());
   GrayImage *gray_image = createPGM(rgb_image->width, rgb_image->height);
   GrayImage *gradient_image = createPGM(rgb_image->width, rgb_image->height);
   float *angle_image = new float[rgb_image->width * rgb_image->height];
-  RGBImage *edge_color_image = readPPM(filename);
+  RGBImage *edge_color_image = readPPM(filename.c_str());
 
   dim3 rgb_image_dim(rgb_image->width, rgb_image->height);
   dim3 gray_image_dim(gray_image->width, gray_image->height);
@@ -78,14 +78,14 @@ void test_sobel_feldman(char *filename, int2 start_pixel, ProcessingUnit process
   delete [] angle_image;
 }
 
-void test_canny(char *filename, int2 start_pixel, int canny_min,
-  int canny_max, int canny_sample_offset, ProcessingUnit processing_unit
+void test_canny(std::string filename, int2 start_pixel, int canny_min,
+  int canny_max, int canny_sample_offset, ProcessingUnit processing_unit, int file_index
 ) {
-  RGBImage *rgb_image = readPPM(filename);
+  RGBImage *rgb_image = readPPM(filename.c_str());
   GrayImage *gray_image = createPGM(rgb_image->width, rgb_image->height);
   GrayImage *gradient_image = createPGM(rgb_image->width, rgb_image->height);
   float *angle_image = new float[rgb_image->width * rgb_image->height];
-  RGBImage *edge_color_image = readPPM(filename);
+  RGBImage *edge_color_image = readPPM(filename.c_str());
 
   dim3 rgb_image_dim(rgb_image->width, rgb_image->height);
   dim3 gray_image_dim(gray_image->width, gray_image->height);
@@ -117,8 +117,12 @@ void test_canny(char *filename, int2 start_pixel, int canny_min,
 
     GrayImage *buffer_gray = createPGM(gradient_image->width, gradient_image->height);
     RGBImage *buffer_rgb = createPPM(gradient_image->width, gradient_image->height);
-    int file_index = 0;
-    for (int i = canny_min; i <= canny_max && canny_sample_offset; i += canny_sample_offset) {
+
+    if (canny_sample_offset == 0) {
+      canny_sample_offset = 255;
+    }
+
+    for (int i = canny_min; i <= canny_max; i += canny_sample_offset) {
       memcpy(buffer_gray->data, gradient_image->data, sizeof(unsigned char) * gradient_image->width * gradient_image->height);
       ProcessingUnitDevice::canny(buffer_gray->data, angle_image, gray_image_dim, i, canny_max);
 
@@ -177,7 +181,12 @@ void test_canny(char *filename, int2 start_pixel, int canny_min,
     GrayImage *buffer_gray = createPGM(gradient_image->width, gradient_image->height);
     RGBImage *buffer_rgb = createPPM(gradient_image->width, gradient_image->height);
     int file_index = 0;
-    for (int i = canny_min; i <= canny_max && canny_sample_offset; i += canny_sample_offset) {
+
+    if (canny_sample_offset == 0) {
+      canny_sample_offset = 255;
+    }
+
+    for (int i = canny_min; i <= canny_max; i += canny_sample_offset) {
       memcpy(buffer_gray->data, gradient_image->data, sizeof(unsigned char) * gradient_image->width * gradient_image->height);
       ProcessingUnitHost::canny(buffer_gray->data, angle_image, gray_image_dim, i, canny_max);
 

@@ -89,14 +89,19 @@ void ProcessingUnitHost::canny(unsigned char *gradient_matrix, float *angle_matr
 }
 
 __global__ void non_maximum_suppression_kernel(unsigned char *gradient_matrix, float *angle_matrix, dim3 matrix_dim) {
-  int2 index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
-  
-  unsigned char final_value = non_maximum_suppression_core(index, gradient_matrix, angle_matrix, matrix_dim);
+  int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
+  unsigned char final_value = 0;
+ 
+  if (global_index.x < matrix_dim.x && global_index.y < matrix_dim.y) {
+    final_value = non_maximum_suppression_core(global_index, gradient_matrix, angle_matrix, matrix_dim);
+  }
   
   // Avoid race condition with gradient_matrix wich is read before and written after
   __syncthreads(); 
   
-  gradient_matrix[index.y*matrix_dim.x + index.x] = final_value; 
+  if (global_index.x < matrix_dim.x && global_index.y < matrix_dim.y) {
+    gradient_matrix[global_index.y*matrix_dim.x + global_index.x] = final_value;
+  }
 }
 
 __device__ __host__ unsigned char non_maximum_suppression_core(int2 index, unsigned char *gradient_matrix, float *angle_matrix, dim3 matrix_dim) {
@@ -119,7 +124,7 @@ __device__ __host__ unsigned char non_maximum_suppression_core(int2 index, unsig
       get_color_canny(angle_matrix[INT_INDEX - matrix_dim.x + 1] + M_PI_2) == 'G') {
       final_value = 0;
     } else if (0 < index.x && index.y < matrix_dim.y-1 && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + matrix_dim.x - 1] &&
-      get_color_canny(angle_matrix[INT_INDEX - matrix_dim.x - 1] + M_PI_2) == 'G') {
+      get_color_canny(angle_matrix[INT_INDEX + matrix_dim.x - 1] + M_PI_2) == 'G') {
       final_value = 0;
     }
   } else if (get_color_canny(ANGLE) == 'R') {

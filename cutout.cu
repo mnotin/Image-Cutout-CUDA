@@ -164,7 +164,10 @@ __global__ void cutout_algorithm_kernel(char *cutout_matrix, dim3 matrix_dim, in
 
   __shared__ int shared_done;
   __shared__ char shared_cutout_matrix[MATRIX_SIZE_PER_BLOCK*MATRIX_SIZE_PER_BLOCK];
-  shared_cutout_matrix[local_index.y*MATRIX_SIZE_PER_BLOCK + local_index.x] = cutout_matrix[global_index.y*matrix_dim.x + global_index.x];
+  
+  if (global_index.x < matrix_dim.x && global_index.y < matrix_dim.y) { 
+    shared_cutout_matrix[local_index.y*MATRIX_SIZE_PER_BLOCK + local_index.x] = cutout_matrix[global_index.y*matrix_dim.x + global_index.x];
+  }
 
   if (local_index.x == 0 && local_index.y == 0) {
     shared_done = 0;
@@ -180,8 +183,10 @@ __global__ void cutout_algorithm_kernel(char *cutout_matrix, dim3 matrix_dim, in
     }
     
     __syncthreads();
-
-    cutout_algorithm_core(local_index, shared_cutout_matrix, shared_matrix_dim, &shared_done);
+    
+    if (global_index.x < matrix_dim.x && global_index.y < matrix_dim.y) {
+      cutout_algorithm_core(local_index, shared_cutout_matrix, shared_matrix_dim, &shared_done);
+    }
 
     __syncthreads();
 
@@ -195,8 +200,10 @@ __global__ void cutout_algorithm_kernel(char *cutout_matrix, dim3 matrix_dim, in
   __syncthreads();
  
   // Write the result back to global memory
-  cutout_matrix[global_index.y*matrix_dim.x + global_index.x] =
-    shared_cutout_matrix[local_index.y*MATRIX_SIZE_PER_BLOCK + local_index.x];
+  if (global_index.x < matrix_dim.x && global_index.y < matrix_dim.y) {
+    cutout_matrix[global_index.y*matrix_dim.x + global_index.x] =
+      shared_cutout_matrix[local_index.y*MATRIX_SIZE_PER_BLOCK + local_index.x];
+  }
 }
 
 __device__ __host__ void cutout_algorithm_core(int2 index, char *cutout_matrix, dim3 matrix_dim, int *done) {
@@ -216,7 +223,11 @@ __device__ __host__ void cutout_algorithm_core(int2 index, char *cutout_matrix, 
 __global__ void ProcessingUnitDevice::Cutout::transfer_edges_between_blocks_kernel(char *cutout_matrix, dim3 matrix_dim, int *done) {
   int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
   int2 local_index = make_int2(threadIdx.x, threadIdx.y);
-
+  
+  if (matrix_dim.x <= global_index.x || matrix_dim.y <= global_index.y) {
+    return;
+  }
+  
   if (local_index.y == 0 && 0 < global_index.y ||
       local_index.y == MATRIX_SIZE_PER_BLOCK-1 && global_index.y < matrix_dim.y-1 ||
       local_index.x == 0 && 0 < global_index.x ||

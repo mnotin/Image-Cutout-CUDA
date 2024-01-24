@@ -1,11 +1,13 @@
 #include <iostream>
 #include <chrono>
+#include <fstream>
+#include <iomanip>
 
 #include "main.hpp"
 #include "tests.hpp"
 
 int main(int argc, char **argv) {
-  char *filename;
+  //char *filename;
   int2 start_pixel;
   EdgeDetection edge_detection = EdgeDetection::Canny;
   ProcessingUnit processing_unit = ProcessingUnit::Device;
@@ -74,15 +76,50 @@ int main(int argc, char **argv) {
       print_bad_usage();
       exit(EXIT_FAILURE);
     } else {
-      filename = argv[argc-1];
+      //filename = argv[argc-1];
     }
   }
   
   std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-  if (edge_detection == EdgeDetection::SobelFeldman) {
-    test_sobel_feldman(filename, start_pixel, processing_unit);
-  } else if (edge_detection == EdgeDetection::Canny) {
-    test_canny(filename, start_pixel, canny_min_val, canny_max_val, canny_sample_offset, processing_unit);
+  
+  int file_index = 1;
+  std::string prefix("input/frame");
+
+  std::stringstream string_stream;
+  std::string number;
+  string_stream << std::setw(5) << std::setfill('0') << file_index;
+  string_stream >> number;
+
+  std::string filename; // prefix + number + .ppm + \0
+  filename.append(prefix);
+  filename.append(number);
+  filename.append(".ppm");
+  std::ifstream file(filename);
+  std::cout << filename << std::endl;
+  
+  while (file.good()) {
+    file.close();
+    std::cout << filename << std::endl;
+    if (edge_detection == EdgeDetection::SobelFeldman) {
+      test_sobel_feldman(filename, start_pixel, processing_unit);
+    } else if (edge_detection == EdgeDetection::Canny) {
+      test_canny(filename, start_pixel, canny_min_val, canny_max_val, canny_sample_offset, processing_unit, file_index);
+    }
+    if (canny_sample_offset != 0)
+      break; // We sample only the first image
+    file_index += 1;
+    
+    std::stringstream string_stream2;
+    string_stream2 << std::setw(5) << std::setfill('0') << file_index;
+    number.clear();
+    string_stream2 >> number;
+
+    filename.clear();
+    filename.append(prefix);
+    filename.append(number);
+    filename.append(".ppm");
+
+    file.open(filename);
   }
   std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
   
