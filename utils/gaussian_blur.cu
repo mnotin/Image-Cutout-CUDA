@@ -27,7 +27,6 @@ void ProcessingUnitDevice::gaussian_blur(unsigned char *h_matrix, dim3 matrix_di
 
   dim3 threads(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
   dim3 blocks(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
-  std::cout << "Nombre de blocs lancés: " << blocks.x << " " << blocks.y << std::endl;
   convolution_kernel<<<blocks, threads>>>(d_input_matrix, d_output_matrix, matrix_dim, d_kernel, KERNEL_WIDTH);
  
   cudaMemcpy(h_int_matrix, d_output_matrix, matrix_dim.x*matrix_dim.y*sizeof(int), cudaMemcpyDeviceToHost);

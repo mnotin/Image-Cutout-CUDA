@@ -95,11 +95,10 @@ int main(int argc, char **argv) {
   filename.append(number);
   filename.append(".ppm");
   std::ifstream file(filename);
-  std::cout << filename << std::endl;
   
   while (file.good()) {
     file.close();
-    std::cout << filename << std::endl;
+
     if (edge_detection == EdgeDetection::SobelFeldman) {
       test_sobel_feldman(filename, start_pixel, processing_unit);
     } else if (edge_detection == EdgeDetection::Canny) {

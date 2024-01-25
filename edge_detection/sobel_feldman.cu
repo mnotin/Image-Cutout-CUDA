@@ -19,7 +19,6 @@ const float SOBEL_VERTICAL_KERNEL[KERNEL_SIZE*KERNEL_SIZE] = { 1,  2,  1,
 void ProcessingUnitDevice::sobel_feldman(unsigned char *h_input_matrix, unsigned char *h_gradient_matrix, float *h_angle_matrix, dim3 matrix_dim) {
   dim3 threads(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
   dim3 blocks(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
-  std::cout << "Nombre de blocs lancés: " << blocks.x << " " << blocks.y << std::endl;
 
   unsigned char *d_input_matrix;
   unsigned char *d_gradient_matrix;
@@ -140,7 +139,6 @@ __device__ __host__ float angle_core(int2 index, int *horizontal_gradient, int *
 void ProcessingUnitDevice::generate_edge_color(unsigned char *h_gradient_matrix, float *h_angle_matrix, unsigned char *h_output_image, dim3 matrix_dim) {
   dim3 threads(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
   dim3 blocks(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
-  std::cout << "Nombre de blocs lancés: " << blocks.x << " " << blocks.y << std::endl;
 
   unsigned char *d_gradient_matrix;
   float *d_angle_matrix;
