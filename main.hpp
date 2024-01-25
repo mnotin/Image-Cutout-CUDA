@@ -1,7 +1,7 @@
 #ifndef MAIN_HPP
 #define MAIN_HPP
 
-#define MATRIX_SIZE_PER_BLOCK 32
+#define MATRIX_SIZE_PER_BLOCK 16
 
 enum EdgeDetection { SobelFeldman, Canny };
 enum ProcessingUnit { Host, Device };
