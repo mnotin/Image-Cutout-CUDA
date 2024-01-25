@@ -89,7 +89,7 @@ void ProcessingUnitHost::cutout(unsigned char *rgb_image, unsigned char *edge_ma
     done = 1;
     for (index.y = 0; index.y < matrix_dim.y; index.y++) {
       for (index.x = 0; index.x < matrix_dim.x; index.x++) {
-        cutout_algorithm_core(index, cutout_matrix, matrix_dim, &done);
+        cutout_algorithm_core(index, cutout_matrix, matrix_dim, make_int2(matrix_dim.x, matrix_dim.y), &done);
       }
     }
   }
@@ -145,12 +145,10 @@ __global__ void draw_edges_on_cutout_matrix_kernel(unsigned char *edge_matrix, c
 __device__ __host__ char draw_edges_on_cutout_matrix_core(int2 index, unsigned char *edge_matrix, dim3 matrix_dim, int2 start_pixel, int threshold) {
   char result = 'D'; // Discard
 
-  if (index.x < matrix_dim.x && index.y < matrix_dim.y && threshold < edge_matrix[index.y*matrix_dim.x + index.x]) {
-    result = 'B'; // Border
-  }
-  
   if (start_pixel.x == index.x && start_pixel.y == index.y) {
     result = 'M'; // Marked
+  } else if (threshold < edge_matrix[index.y*matrix_dim.x + index.x]) {
+    result = 'B'; // Border
   }
 
   return result;
@@ -163,8 +161,22 @@ __device__ __host__ char draw_edges_on_cutout_matrix_core(int2 index, unsigned c
 __global__ void cutout_algorithm_kernel(char *cutout_matrix, dim3 matrix_dim, int *done) {
   int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
   int2 local_index = make_int2(threadIdx.x, threadIdx.y);
-
+  
+  __shared__ bool right_block;
+  if (local_index.x == 0 && local_index.y == 0) {
+    right_block = false;
+  }
+  __syncthreads();
+  if (matrix_dim.x <= global_index.x) {
+    right_block = true;
+  }
+  __syncthreads();
+  
   dim3 shared_matrix_dim(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
+  int2 read_limit = make_int2(shared_matrix_dim.x, shared_matrix_dim.y);
+  if (right_block) {
+    read_limit.x = matrix_dim.x % MATRIX_SIZE_PER_BLOCK;
+  }
 
   __shared__ int shared_done;
   __shared__ char shared_cutout_matrix[MATRIX_SIZE_PER_BLOCK*MATRIX_SIZE_PER_BLOCK];
@@ -189,7 +201,7 @@ __global__ void cutout_algorithm_kernel(char *cutout_matrix, dim3 matrix_dim, in
     __syncthreads();
     
     if (global_index.x < matrix_dim.x && global_index.y < matrix_dim.y) {
-      cutout_algorithm_core(local_index, shared_cutout_matrix, shared_matrix_dim, &shared_done);
+      cutout_algorithm_core(local_index, shared_cutout_matrix, shared_matrix_dim, read_limit, &shared_done);
     }
 
     __syncthreads();
@@ -210,12 +222,12 @@ __global__ void cutout_algorithm_kernel(char *cutout_matrix, dim3 matrix_dim, in
   }
 }
 
-__device__ __host__ void cutout_algorithm_core(int2 index, char *cutout_matrix, dim3 matrix_dim, int *done) {
+__device__ __host__ void cutout_algorithm_core(int2 index, char *cutout_matrix, dim3 matrix_dim, int2 read_limit, int *done) {
   const int INT_INDEX = index.y*matrix_dim.x + index.x;
 
   if (cutout_matrix[INT_INDEX] == 'D') {
-    if (0 < index.x && cutout_matrix[INT_INDEX-1] == 'M' || 
-        index.x < matrix_dim.x-1 && cutout_matrix[INT_INDEX+1] == 'M' ||
+    if (0 < index.x && cutout_matrix[INT_INDEX-1] == 'M' ||
+        index.x < read_limit.x-1 && cutout_matrix[INT_INDEX+1] == 'M' ||
         0 < index.y && cutout_matrix[INT_INDEX - matrix_dim.x] == 'M' ||
         index.y < matrix_dim.y-1 && cutout_matrix[INT_INDEX + matrix_dim.x] == 'M') {
       cutout_matrix[INT_INDEX] = 'M';
@@ -227,7 +239,22 @@ __device__ __host__ void cutout_algorithm_core(int2 index, char *cutout_matrix, 
 __global__ void ProcessingUnitDevice::Cutout::transfer_edges_between_blocks_kernel(char *cutout_matrix, dim3 matrix_dim, int *done) {
   int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
   int2 local_index = make_int2(threadIdx.x, threadIdx.y);
+  int2 read_limit = make_int2(matrix_dim.x, matrix_dim.y);
   
+  __shared__ bool right_block;
+  if (local_index.x == 0 && local_index.y == 0) {
+    right_block = false;
+  }
+  __syncthreads();
+  if (matrix_dim.x <= global_index.x) {
+    right_block = true;
+  }
+  __syncthreads();
+  
+  if (right_block) {
+    read_limit.x = matrix_dim.x % MATRIX_SIZE_PER_BLOCK;
+  }
+
   if (matrix_dim.x <= global_index.x || matrix_dim.y <= global_index.y) {
     return;
   }
@@ -236,7 +263,7 @@ __global__ void ProcessingUnitDevice::Cutout::transfer_edges_between_blocks_kern
       local_index.y == MATRIX_SIZE_PER_BLOCK-1 && global_index.y < matrix_dim.y-1 ||
       local_index.x == 0 && 0 < global_index.x ||
       local_index.x == MATRIX_SIZE_PER_BLOCK-1 && global_index.x < matrix_dim.x-1) {
-      cutout_algorithm_core(global_index, cutout_matrix, matrix_dim, done);
+      cutout_algorithm_core(global_index, cutout_matrix, matrix_dim, read_limit, done);
   }
 }
 

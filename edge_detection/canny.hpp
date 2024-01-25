@@ -10,7 +10,7 @@ __global__ void histeresis_thresholding_init_kernel(unsigned char *gradient_matr
 __device__ __host__ char histeresis_thresholding_init_core(int2 index, unsigned char *gradient_matrix, dim3 matrix_dim, int canny_min, int canny_max);
 
 __global__ void histeresis_thresholding_loop_kernel(char *ht_matrix, dim3 matrix_dim, int *done);
-__device__ __host__ void histeresis_thresholding_loop_core(int2 index, char *ht_matrix, dim3 matrix_dim, int *done);
+__device__ __host__ void histeresis_thresholding_loop_core(int2 index, char *ht_matrix, dim3 matrix_dim, int2 read_limit, int *done);
 
 __global__ void histeresis_thresholding_end_kernel(unsigned char *gradient_matrix, char *ht_matrix, dim3 matrix_dim);
 __device__ __host__ unsigned char histeresis_thresholding_end_core(int2 index, char *ht_matrix, dim3 matrix_dim);

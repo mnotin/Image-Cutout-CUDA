@@ -136,8 +136,8 @@ void test_canny(std::string filename, int2 start_pixel, int canny_min,
       strcpy(filename_gray + strlen(prefix_gray), number_gray);
       strcpy(filename_gray + strlen(filename_gray), ".ppm");
 
-      //printf("%s\n", filename_gray);
-      //writePGM(filename, buffer);
+      printf("%s\n", filename_gray);
+      writePGM(filename_gray, buffer_gray);
     
       // 4. Last step, cutout the object selected by the user
       memcpy(buffer_rgb->data, rgb_image->data, sizeof(unsigned char) * gradient_image->width * gradient_image->height * 3);
@@ -200,8 +200,8 @@ void test_canny(std::string filename, int2 start_pixel, int canny_min,
       strcpy(filename_gray + strlen(prefix_gray), number_gray);
       strcpy(filename_gray + strlen(filename_gray), ".ppm");
 
-      //printf("%s\n", filename_gray);
-      //writePGM(filename, buffer);
+      printf("%s\n", filename_gray);
+      writePGM(filename_gray, buffer_gray);
     
       // 4. Last step, cutout the object selected by the user
       memcpy(buffer_rgb->data, rgb_image->data, sizeof(unsigned char) * gradient_image->width * gradient_image->height * 3);
