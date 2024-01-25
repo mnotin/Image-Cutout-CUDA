@@ -163,12 +163,17 @@ __global__ void cutout_algorithm_kernel(char *cutout_matrix, dim3 matrix_dim, in
   int2 local_index = make_int2(threadIdx.x, threadIdx.y);
   
   __shared__ bool right_block;
+  __shared__ bool bottom_block;
   if (local_index.x == 0 && local_index.y == 0) {
     right_block = false;
+    bottom_block = false;
   }
   __syncthreads();
   if (matrix_dim.x <= global_index.x) {
     right_block = true;
+  }
+  if (matrix_dim.y <= global_index.y) {
+    bottom_block = true;
   }
   __syncthreads();
   
@@ -176,6 +181,9 @@ __global__ void cutout_algorithm_kernel(char *cutout_matrix, dim3 matrix_dim, in
   int2 read_limit = make_int2(shared_matrix_dim.x, shared_matrix_dim.y);
   if (right_block) {
     read_limit.x = matrix_dim.x % MATRIX_SIZE_PER_BLOCK;
+  }
+  if (bottom_block) {
+    read_limit.y = matrix_dim.y % MATRIX_SIZE_PER_BLOCK;
   }
 
   __shared__ int shared_done;
@@ -229,7 +237,7 @@ __device__ __host__ void cutout_algorithm_core(int2 index, char *cutout_matrix, 
     if (0 < index.x && cutout_matrix[INT_INDEX-1] == 'M' ||
         index.x < read_limit.x-1 && cutout_matrix[INT_INDEX+1] == 'M' ||
         0 < index.y && cutout_matrix[INT_INDEX - matrix_dim.x] == 'M' ||
-        index.y < matrix_dim.y-1 && cutout_matrix[INT_INDEX + matrix_dim.x] == 'M') {
+        index.y < read_limit.y-1 && cutout_matrix[INT_INDEX + matrix_dim.x] == 'M') {
       cutout_matrix[INT_INDEX] = 'M';
       *done = 0;
     }
@@ -242,17 +250,25 @@ __global__ void ProcessingUnitDevice::Cutout::transfer_edges_between_blocks_kern
   int2 read_limit = make_int2(matrix_dim.x, matrix_dim.y);
   
   __shared__ bool right_block;
+  __shared__ bool bottom_block;
   if (local_index.x == 0 && local_index.y == 0) {
     right_block = false;
+    bottom_block = false;
   }
   __syncthreads();
   if (matrix_dim.x <= global_index.x) {
     right_block = true;
   }
+  if (matrix_dim.y <= global_index.y) {
+    bottom_block = true;
+  }
   __syncthreads();
   
   if (right_block) {
     read_limit.x = matrix_dim.x % MATRIX_SIZE_PER_BLOCK;
+  }
+  if (bottom_block) {
+    read_limit.x = matrix_dim.y % MATRIX_SIZE_PER_BLOCK;
   }
 
   if (matrix_dim.x <= global_index.x || matrix_dim.y <= global_index.y) {

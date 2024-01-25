@@ -180,12 +180,17 @@ __global__ void histeresis_thresholding_loop_kernel(char *ht_matrix, dim3 matrix
   int2 local_index = make_int2(threadIdx.x, threadIdx.y);
  
   __shared__ bool right_block;
+  __shared__ bool bottom_block;
   if (local_index.x == 0 && local_index.y == 0) {
     right_block = false;
+    bottom_block = false;
   }
   __syncthreads();
   if (matrix_dim.x <= global_index.x) {
     right_block = true;
+  }
+  if (matrix_dim.y <= global_index.y) {
+    bottom_block = true;
   }
   __syncthreads();
   
@@ -193,6 +198,9 @@ __global__ void histeresis_thresholding_loop_kernel(char *ht_matrix, dim3 matrix
   int2 read_limit = make_int2(shared_matrix_dim.x, shared_matrix_dim.y);
   if (right_block) {
     read_limit.x = matrix_dim.x % MATRIX_SIZE_PER_BLOCK;
+  }
+  if (bottom_block) {
+    read_limit.y = matrix_dim.y % MATRIX_SIZE_PER_BLOCK;
   }
 
   __shared__ int shared_done;
@@ -268,15 +276,15 @@ __device__ __host__ void histeresis_thresholding_loop_core(int2 index, char *ht_
       // Right
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
-    } else if (0 < index.x && index.y < matrix_dim.y-1 && ht_matrix[(index.y+1)*matrix_dim.x + index.x-1] == 'M') {
+    } else if (0 < index.x && index.y < read_limit.y-1 && ht_matrix[(index.y+1)*matrix_dim.x + index.x-1] == 'M') {
       // Bottom Left
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
-    } else if (index.y < matrix_dim.y-1 && ht_matrix[(index.y+1)*matrix_dim.x + index.x] == 'M') {
+    } else if (index.y < read_limit.y-1 && ht_matrix[(index.y+1)*matrix_dim.x + index.x] == 'M') {
       // Bottom
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
-    } else if (index.x < read_limit.x-1 && index.y < matrix_dim.y-1 && ht_matrix[(index.y+1)*matrix_dim.x + index.x+1] == 'M') {
+    } else if (index.x < read_limit.x-1 && index.y < read_limit.y-1 && ht_matrix[(index.y+1)*matrix_dim.x + index.x+1] == 'M') {
       // Bottom Right
       ht_matrix[INT_INDEX] = 'M';
       *done = 0;
@@ -290,17 +298,25 @@ __global__ void ProcessingUnitDevice::Canny::transfer_edges_between_blocks_kerne
   int2 read_limit = make_int2(matrix_dim.x, matrix_dim.y);
 
   __shared__ bool right_block;
+  __shared__ bool bottom_block;
   if (local_index.x == 0 && local_index.y == 0) {
     right_block = false;
+    bottom_block = false;
   }
   __syncthreads();
   if (matrix_dim.x <= global_index.x) {
     right_block = true;
   }
+  if (matrix_dim.y <= global_index.y) {
+    bottom_block = true;
+  }
   __syncthreads();
   
   if (right_block) {
     read_limit.x = matrix_dim.x % MATRIX_SIZE_PER_BLOCK;
+  }
+  if (bottom_block) {
+    read_limit.y = matrix_dim.y % MATRIX_SIZE_PER_BLOCK;
   }
   
   if (global_index.x < matrix_dim.x && global_index.y < matrix_dim.y) {
