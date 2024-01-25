@@ -268,7 +268,7 @@ __global__ void ProcessingUnitDevice::Cutout::transfer_edges_between_blocks_kern
     read_limit.x = matrix_dim.x % MATRIX_SIZE_PER_BLOCK;
   }
   if (bottom_block) {
-    read_limit.x = matrix_dim.y % MATRIX_SIZE_PER_BLOCK;
+    read_limit.y = matrix_dim.y % MATRIX_SIZE_PER_BLOCK;
   }
 
   if (matrix_dim.x <= global_index.x || matrix_dim.y <= global_index.y) {

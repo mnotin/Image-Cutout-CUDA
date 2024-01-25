@@ -114,7 +114,7 @@ __device__ __host__ unsigned char non_maximum_suppression_core(int2 index, unsig
     if (0 < index.y && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - matrix_dim.x] && 
           get_color_canny(angle_matrix[INT_INDEX - matrix_dim.x] + M_PI_2) == 'Y') {
       final_value = 0;
-    } else if (index.y < matrix_dim.x - 1 && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + matrix_dim.x] &&
+    } else if (index.y < matrix_dim.y - 1 && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + matrix_dim.x] &&
         get_color_canny(angle_matrix[INT_INDEX + matrix_dim.x] + M_PI_2) == 'Y') {
       final_value = 0;
     }
