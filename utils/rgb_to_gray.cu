@@ -30,7 +30,7 @@ void ProcessingUnitDevice::rgb_to_gray(RGBImage *h_rgb_image, GrayImage *h_gray_
   unsigned char *d_gray_image;
 
   cudaMalloc(&d_rgb_image, sizeof(unsigned char) * (3 * image_dim.x * image_dim.y));
-  cudaMalloc(&d_gray_image, sizeof(unsigned char) * (image_dim.x * image_dim.y)); 
+  cudaMalloc(&d_gray_image, sizeof(unsigned char) * (image_dim.x * image_dim.y));
 
   cudaMemcpy(d_rgb_image, h_rgb_image->data, 3 * image_dim.x * image_dim.y, cudaMemcpyHostToDevice);
 

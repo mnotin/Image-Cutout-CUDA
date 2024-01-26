@@ -20,45 +20,59 @@ void ProcessingUnitDevice::sobel_feldman(unsigned char *h_input_matrix, unsigned
   dim3 threads(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
   dim3 blocks(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
 
+  cudaStream_t cuda_streams[2];
+  for (int i = 0; i < 2; ++i) {
+    cudaStreamCreate(&cuda_streams[i]);
+  }
+
   unsigned char *d_input_matrix;
   unsigned char *d_gradient_matrix;
   int *d_horizontal_gradient;
   int *d_vertical_gradient;
   float *d_angle_matrix;
-  float *d_kernel;
+  float *d_horizontal_kernel;
+  float *d_vertical_kernel;
 
   cudaMalloc(&d_input_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char));
   cudaMalloc(&d_gradient_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char));
   cudaMalloc(&d_horizontal_gradient, matrix_dim.x * matrix_dim.y * sizeof(int));
   cudaMalloc(&d_vertical_gradient, matrix_dim.x * matrix_dim.y * sizeof(int));
   cudaMalloc(&d_angle_matrix, matrix_dim.x * matrix_dim.y * sizeof(float));
-  cudaMalloc(&d_kernel, KERNEL_SIZE*KERNEL_SIZE * sizeof(float));
+  cudaMalloc(&d_horizontal_kernel, KERNEL_SIZE*KERNEL_SIZE * sizeof(float));
+  cudaMalloc(&d_vertical_kernel, KERNEL_SIZE*KERNEL_SIZE * sizeof(float));
 
   cudaMemcpy(d_input_matrix, h_input_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyHostToDevice);
 
   // Horizontal gradient
-  cudaMemcpy(d_kernel, SOBEL_HORIZONTAL_KERNEL, KERNEL_SIZE*KERNEL_SIZE * sizeof(int), cudaMemcpyHostToDevice);
-  convolution_kernel<<<blocks, threads>>>(d_input_matrix, d_horizontal_gradient, matrix_dim, d_kernel, 3);
+  cudaMemcpyAsync(d_horizontal_kernel, SOBEL_HORIZONTAL_KERNEL, KERNEL_SIZE*KERNEL_SIZE * sizeof(int), cudaMemcpyHostToDevice, cuda_streams[0]);
+  convolution_kernel<<<blocks, threads, 0, cuda_streams[0]>>>(d_input_matrix, d_horizontal_gradient, matrix_dim, d_horizontal_kernel, 3);
 
   // Vertical gradient
-  cudaMemcpy(d_kernel, SOBEL_VERTICAL_KERNEL, KERNEL_SIZE*KERNEL_SIZE * sizeof(int), cudaMemcpyHostToDevice);
-  convolution_kernel<<<blocks, threads>>>(d_input_matrix, d_vertical_gradient, matrix_dim, d_kernel, KERNEL_SIZE);
+  cudaMemcpyAsync(d_vertical_kernel, SOBEL_VERTICAL_KERNEL, KERNEL_SIZE*KERNEL_SIZE * sizeof(int), cudaMemcpyHostToDevice, cuda_streams[1]);
+  convolution_kernel<<<blocks, threads, 0, cuda_streams[1]>>>(d_input_matrix, d_vertical_gradient, matrix_dim, d_vertical_kernel, KERNEL_SIZE);
+
+  cudaDeviceSynchronize();
   
   // Global gradient
-  cudaDeviceSynchronize();
-  global_gradient_kernel<<<blocks, threads>>>(d_gradient_matrix, d_horizontal_gradient, d_vertical_gradient, matrix_dim); 
-  cudaMemcpy(h_gradient_matrix, d_gradient_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyDeviceToHost);
+  global_gradient_kernel<<<blocks, threads, 0, cuda_streams[0]>>>(d_gradient_matrix, d_horizontal_gradient, d_vertical_gradient, matrix_dim); 
+  cudaMemcpyAsync(h_gradient_matrix, d_gradient_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyDeviceToHost, cuda_streams[1]);
  
   // Angle of the gradient
-  angle_kernel<<<blocks, threads>>>(d_horizontal_gradient, d_vertical_gradient, d_angle_matrix, matrix_dim);
-  cudaMemcpy(h_angle_matrix, d_angle_matrix, matrix_dim.x * matrix_dim.y * sizeof(float), cudaMemcpyDeviceToHost);
+  angle_kernel<<<blocks, threads, 0, cuda_streams[1]>>>(d_angle_matrix, d_horizontal_gradient, d_vertical_gradient, matrix_dim);
+  cudaMemcpyAsync(h_angle_matrix, d_angle_matrix, matrix_dim.x * matrix_dim.y * sizeof(float), cudaMemcpyDeviceToHost, cuda_streams[1]);
 
+  cudaDeviceSynchronize();
+
+  for (int i = 0; i < 2; ++i) {
+    cudaStreamDestroy(cuda_streams[i]);
+  }
   cudaFree(d_input_matrix);
   cudaFree(d_gradient_matrix);
   cudaFree(d_horizontal_gradient);
   cudaFree(d_vertical_gradient);
   cudaFree(d_angle_matrix);
-  cudaFree(d_kernel);
+  cudaFree(d_horizontal_kernel);
+  cudaFree(d_vertical_kernel);
 }
 
 void ProcessingUnitHost::sobel_feldman(unsigned char *input_matrix, unsigned char *gradient_matrix, float *angle_matrix, dim3 matrix_dim) {
@@ -119,7 +133,7 @@ __device__ __host__ unsigned char global_gradient_core(int2 index, int *horizont
 }
 
 
-__global__ void angle_kernel(int *horizontal_gradient, int *vertical_gradient, float *angle_matrix, dim3 matrix_dim) {
+__global__ void angle_kernel(float *angle_matrix, int *horizontal_gradient, int *vertical_gradient, dim3 matrix_dim) {
   int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
 
   if (global_index.x < matrix_dim.x && global_index.y < matrix_dim.y) {
