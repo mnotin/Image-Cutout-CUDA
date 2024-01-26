@@ -1,27 +1,8 @@
-#include <iostream>
+#include "rgb_to_gray_launcher.hpp"
 
-#include "rgb_to_gray.hpp"
-#include "../main.hpp"
-
-__global__ void rgb_to_gray_kernel(unsigned char *rgb_image, unsigned char *gray_image, dim3 image_dim) {
-  int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
-
-  if (image_dim.x <= global_index.x || image_dim.y <= global_index.y) {
-    return;
-  }
-
-  gray_image[global_index.y*image_dim.x + global_index.x] = rgb_to_gray_core(global_index, rgb_image, image_dim);
-}
-
-__device__ __host__ unsigned char rgb_to_gray_core(int2 index, unsigned char *rgb_image, dim3 image_dim) {
-  unsigned char r = 0, g = 0, b = 0;
-
-  r = rgb_image[3 * (index.y*image_dim.x + index.x)];
-  g = rgb_image[3 * (index.y*image_dim.x + index.x) + 1];
-  b = rgb_image[3 * (index.y*image_dim.x + index.x) + 2];
-
-  return (0.21 * r + 0.71 * g + 0.07 * b);
-}
+#include "../../kernel/utils/rgb_to_gray_kernel.hpp"
+#include "../../core/utils/rgb_to_gray_core.hpp"
+#include "../../main.hpp"
 
 void ProcessingUnitDevice::rgb_to_gray(RGBImage *h_rgb_image, GrayImage *h_gray_image) {
   dim3 image_dim(h_rgb_image->width, h_rgb_image->height);

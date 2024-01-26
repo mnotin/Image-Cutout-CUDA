@@ -1,9 +1,8 @@
+#include "gaussian_blur_launcher.hpp"
 
-#include <iostream>
-
-#include "gaussian_blur.hpp"
-#include "convolution.hpp"
-#include "../main.hpp"
+#include "../../kernel/utils/convolution_kernel.hpp"
+#include "../../core/utils/convolution_core.hpp"
+#include "../../main.hpp"
 
 /**
  * Applies a gaussian blur over a matrix.
@@ -12,11 +11,11 @@ void ProcessingUnitDevice::gaussian_blur(unsigned char *h_matrix, dim3 matrix_di
   dim3 block_dim(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
   dim3 grid_dim(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
   const int KERNEL_WIDTH = 3;
-  const float GAUSSIAN_BLUR_KERNEL[KERNEL_WIDTH*KERNEL_WIDTH] = {1/16.0, 2/16.0, 1/16.0, 
-                                                                 2/16.0, 4/16.0, 2/16.0, 
+  const float GAUSSIAN_BLUR_KERNEL[KERNEL_WIDTH*KERNEL_WIDTH] = {1/16.0, 2/16.0, 1/16.0,
+                                                                 2/16.0, 4/16.0, 2/16.0,
                                                                  1/16.0, 2/16.0, 1/16.0};
   int h_int_matrix[matrix_dim.x*matrix_dim.y];
- 
+
   unsigned char *d_input_matrix;
   int *d_output_matrix;
   float *d_kernel;
@@ -29,7 +28,7 @@ void ProcessingUnitDevice::gaussian_blur(unsigned char *h_matrix, dim3 matrix_di
   cudaMemcpy(d_kernel, GAUSSIAN_BLUR_KERNEL, KERNEL_WIDTH*KERNEL_WIDTH * sizeof(int), cudaMemcpyHostToDevice);
 
   convolution_kernel<<<grid_dim, block_dim>>>(d_input_matrix, d_output_matrix, matrix_dim, d_kernel, KERNEL_WIDTH);
- 
+
   cudaMemcpy(h_int_matrix, d_output_matrix, matrix_dim.x*matrix_dim.y*sizeof(int), cudaMemcpyDeviceToHost);
 
   for (int i = 0; i < matrix_dim.y; i++) {
@@ -48,8 +47,8 @@ void ProcessingUnitDevice::gaussian_blur(unsigned char *h_matrix, dim3 matrix_di
  **/
 void ProcessingUnitHost::gaussian_blur(unsigned char *matrix, dim3 matrix_dim) {
   const int KERNEL_WIDTH = 3;
-  float gaussian_blur_kernel[KERNEL_WIDTH*KERNEL_WIDTH] = {1/16.0, 2/16.0, 1/16.0, 
-                                                         2/16.0, 4/16.0, 2/16.0, 
+  float gaussian_blur_kernel[KERNEL_WIDTH*KERNEL_WIDTH] = {1/16.0, 2/16.0, 1/16.0,
+                                                         2/16.0, 4/16.0, 2/16.0,
                                                          1/16.0, 2/16.0, 1/16.0};
   int int_matrix[matrix_dim.x*matrix_dim.y];
   int *output_matrix = new int[matrix_dim.x * matrix_dim.y];
@@ -58,14 +57,14 @@ void ProcessingUnitHost::gaussian_blur(unsigned char *matrix, dim3 matrix_dim) {
     for (int j = 0; j < matrix_dim.x; j++) {
       int2 index = make_int2(j, i);
 
-      output_matrix[i*matrix_dim.x + j] = convolution_core(index, 
+      output_matrix[i*matrix_dim.x + j] = convolution_core(index,
         matrix,
         matrix_dim,
         gaussian_blur_kernel,
         KERNEL_WIDTH);
     }
   }
- 
+
   memcpy(int_matrix, output_matrix, matrix_dim.x*matrix_dim.y*sizeof(int));
 
   for (int i = 0; i < matrix_dim.y; i++) {

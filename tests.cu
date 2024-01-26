@@ -1,15 +1,14 @@
 #include <iostream>
 
 #include "tests.hpp"
-#include "utils/convolution.hpp"
-#include "utils/rgb_to_gray.hpp"
-#include "utils/gaussian_blur.hpp"
-#include "cutout.hpp"
+#include "launcher/utils/rgb_to_gray_launcher.hpp"
+#include "launcher/utils/gaussian_blur_launcher.hpp"
+#include "launcher/cutout_launcher.hpp"
 
 #include "img.h"
 
-#include "edge_detection/sobel_feldman.hpp"
-#include "edge_detection/canny.hpp"
+#include "launcher/edge_detection/sobel_feldman_launcher.hpp"
+#include "launcher/edge_detection/canny_launcher.hpp"
 
 void test_sobel_feldman(std::string filename, int2 start_pixel, ProcessingUnit processing_unit) {
   RGBImage *rgb_image = readPPM(filename.c_str());

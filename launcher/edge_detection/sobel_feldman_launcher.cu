@@ -1,9 +1,12 @@
-#include <iostream>
 #include <math.h>
 
-#include "sobel_feldman.hpp"
-#include "../main.hpp"
-#include "../utils/convolution.hpp"
+#include "sobel_feldman_launcher.hpp"
+
+#include "../../kernel/edge_detection/sobel_feldman_kernel.hpp"
+#include "../../core/edge_detection/sobel_feldman_core.hpp"
+#include "../../main.hpp"
+#include "../../kernel/utils/convolution_kernel.hpp"
+#include "../../core/utils/convolution_core.hpp"
 
 const int KERNEL_SIZE = 3;
 const float SOBEL_HORIZONTAL_KERNEL[KERNEL_SIZE*KERNEL_SIZE] = { 1, 0,  -1, 
@@ -113,42 +116,6 @@ void ProcessingUnitHost::sobel_feldman(unsigned char *input_matrix, unsigned cha
 }
 
 
-/**
- * Computes the global gradient of an image after being processed by the Sobel-Feldman operator.
- **/
-__global__ void global_gradient_kernel(unsigned char *output_matrix, int *horizontal_edges, int *vertical_edges, dim3 matrix_dim) {
-  int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
-
-  if (global_index.x < matrix_dim.x && global_index.y < matrix_dim.y) {
-    output_matrix[global_index.y*matrix_dim.x + global_index.x] = global_gradient_core(global_index, horizontal_edges, vertical_edges, matrix_dim);
-  }
-}
-
-__device__ __host__ unsigned char global_gradient_core(int2 index, int *horizontal_edges, int *vertical_edges, dim3 matrix_dim) {
-  int g_x = horizontal_edges[index.y * matrix_dim.x + index.x];
-  int g_y = vertical_edges[index.y * matrix_dim.x + index.x];
-  float global_gradient = sqrt((double) g_x * g_x + g_y * g_y);
-
-  return global_gradient <= 255.0 ? (unsigned char) global_gradient : 255;
-}
-
-
-__global__ void angle_kernel(float *angle_matrix, int *horizontal_gradient, int *vertical_gradient, dim3 matrix_dim) {
-  int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
-
-  if (global_index.x < matrix_dim.x && global_index.y < matrix_dim.y) {
-    angle_matrix[global_index.y*matrix_dim.x + global_index.x] = angle_core(global_index, horizontal_gradient, vertical_gradient, matrix_dim); 
-  }
-}
-
-__device__ __host__ float angle_core(int2 index, int *horizontal_gradient, int *vertical_gradient, dim3 matrix_dim) {
-  int g_x = horizontal_gradient[index.y * matrix_dim.x + index.x];
-  int g_y = vertical_gradient[index.y * matrix_dim.x + index.x];
-  float angle = atan((float) g_y / g_x);
-
-  return angle; 
-}
-
 
 void ProcessingUnitDevice::generate_edge_color(unsigned char *h_gradient_matrix, float *h_angle_matrix, unsigned char *h_output_image, dim3 matrix_dim) {
   dim3 block_dim(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
@@ -183,68 +150,4 @@ void ProcessingUnitHost::generate_edge_color(unsigned char *gradient_matrix, flo
       edge_color_core(index, gradient_matrix, angle_matrix, output_image, matrix_dim);
     }
   }
-}
-
-/**
- * Give a color to edges depending on their direction.
- **/
-__global__ void edge_color_kernel(unsigned char *gradient_matrix, float *angle_matrix, unsigned char *output_image, dim3 image_dim) { 
-  int2 global_index = make_int2(threadIdx.x + (blockIdx.x * blockDim.x), threadIdx.y + (blockIdx.y * blockDim.y));
-  
-  if (global_index.x < image_dim.x && global_index.y < image_dim.y) {
-    edge_color_core(global_index, gradient_matrix, angle_matrix, output_image, image_dim);
-  }
-}
-
-__device__ __host__ void edge_color_core(int2 index, unsigned char *gradient_matrix, float *angle_matrix, unsigned char *output_image, dim3 image_dim) { 
-  const float ANGLE = angle_matrix[index.y*image_dim.x + index.x] + M_PI_2;
-  const int INT_INDEX = index.y*image_dim.x + index.x;
-  
-  if (50 < gradient_matrix[INT_INDEX]) {
-    if (get_color_sobel(ANGLE) == 'Y') {
-      // Horizontal gradient direction : Yellow
-      output_image[3 * (INT_INDEX)] = 255;
-      output_image[3 * (INT_INDEX) + 1] = 255; 
-      output_image[3 * (INT_INDEX) + 2] = 0; 
-    } else if (get_color_sobel(ANGLE) == 'G') {
-      // Top right gradient direction : Green
-      output_image[3 * (INT_INDEX)] = 0; 
-      output_image[3 * (INT_INDEX) + 1] = 255; 
-      output_image[3 * (INT_INDEX) + 2] = 0; 
-    } else if (get_color_sobel(ANGLE) == 'R')  {
-      // Top left gradient direction : Red
-      output_image[3 * (INT_INDEX)] = 255; 
-      output_image[3 * (INT_INDEX) + 1] = 0; 
-      output_image[3 * (INT_INDEX) + 2] = 0; 
-    } else {
-      // Vertical gradient direction : Blue
-      output_image[3 * (INT_INDEX)] = 0; 
-      output_image[3 * (INT_INDEX) + 1] = 0; 
-      output_image[3 * (INT_INDEX) + 2] = 255; 
-    }
-  } else {
-    output_image[3 * (INT_INDEX)] = 0; 
-    output_image[3 * (INT_INDEX) + 1] = 0; 
-    output_image[3 * (INT_INDEX) + 2] = 0; 
-  }
-}
-
-__device__ __host__ char get_color_sobel(float angle) {
-  char color = ' ';
-
-  if (angle < M_PI / 8.0 || (M_PI / 8.0) * 7 < angle) {
-    // Horizontal gradient direction : Yellow
-    color = 'Y';
-  } else if (M_PI / 8.0 < angle && angle < (M_PI / 8.0) * 3) {
-    // Top right gradient direction : Green
-    color = 'G';
-  } else if ((M_PI / 8.0) * 5 < angle && angle < (M_PI / 8.0) * 7) {
-    // Top left gradient direction : Red
-    color = 'R';
-  } else {
-    // Vertical gradient direction : Blue
-    color = 'B';
-  }
-
-  return color;
 }
