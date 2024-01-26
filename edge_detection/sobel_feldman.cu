@@ -17,8 +17,8 @@ const float SOBEL_VERTICAL_KERNEL[KERNEL_SIZE*KERNEL_SIZE] = { 1,  2,  1,
  * The picture should have been smoothed and converted to grayscale prior to being passed over the Sobel-Feldman operator. 
  **/
 void ProcessingUnitDevice::sobel_feldman(unsigned char *h_input_matrix, unsigned char *h_gradient_matrix, float *h_angle_matrix, dim3 matrix_dim) {
-  dim3 threads(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
-  dim3 blocks(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
+  dim3 block_dim(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
+  dim3 grid_dim(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
 
   cudaStream_t cuda_streams[2];
   for (int i = 0; i < 2; ++i) {
@@ -45,20 +45,20 @@ void ProcessingUnitDevice::sobel_feldman(unsigned char *h_input_matrix, unsigned
 
   // Horizontal gradient
   cudaMemcpyAsync(d_horizontal_kernel, SOBEL_HORIZONTAL_KERNEL, KERNEL_SIZE*KERNEL_SIZE * sizeof(int), cudaMemcpyHostToDevice, cuda_streams[0]);
-  convolution_kernel<<<blocks, threads, 0, cuda_streams[0]>>>(d_input_matrix, d_horizontal_gradient, matrix_dim, d_horizontal_kernel, 3);
+  convolution_kernel<<<grid_dim, block_dim, 0, cuda_streams[0]>>>(d_input_matrix, d_horizontal_gradient, matrix_dim, d_horizontal_kernel, 3);
 
   // Vertical gradient
   cudaMemcpyAsync(d_vertical_kernel, SOBEL_VERTICAL_KERNEL, KERNEL_SIZE*KERNEL_SIZE * sizeof(int), cudaMemcpyHostToDevice, cuda_streams[1]);
-  convolution_kernel<<<blocks, threads, 0, cuda_streams[1]>>>(d_input_matrix, d_vertical_gradient, matrix_dim, d_vertical_kernel, KERNEL_SIZE);
+  convolution_kernel<<<grid_dim, block_dim, 0, cuda_streams[1]>>>(d_input_matrix, d_vertical_gradient, matrix_dim, d_vertical_kernel, KERNEL_SIZE);
 
   cudaDeviceSynchronize();
   
   // Global gradient
-  global_gradient_kernel<<<blocks, threads, 0, cuda_streams[0]>>>(d_gradient_matrix, d_horizontal_gradient, d_vertical_gradient, matrix_dim); 
+  global_gradient_kernel<<<grid_dim, block_dim, 0, cuda_streams[0]>>>(d_gradient_matrix, d_horizontal_gradient, d_vertical_gradient, matrix_dim); 
   cudaMemcpyAsync(h_gradient_matrix, d_gradient_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyDeviceToHost, cuda_streams[0]);
  
   // Angle of the gradient
-  angle_kernel<<<blocks, threads, 0, cuda_streams[1]>>>(d_angle_matrix, d_horizontal_gradient, d_vertical_gradient, matrix_dim);
+  angle_kernel<<<grid_dim, block_dim, 0, cuda_streams[1]>>>(d_angle_matrix, d_horizontal_gradient, d_vertical_gradient, matrix_dim);
   cudaMemcpyAsync(h_angle_matrix, d_angle_matrix, matrix_dim.x * matrix_dim.y * sizeof(float), cudaMemcpyDeviceToHost, cuda_streams[1]);
 
   cudaDeviceSynchronize();
@@ -151,8 +151,8 @@ __device__ __host__ float angle_core(int2 index, int *horizontal_gradient, int *
 
 
 void ProcessingUnitDevice::generate_edge_color(unsigned char *h_gradient_matrix, float *h_angle_matrix, unsigned char *h_output_image, dim3 matrix_dim) {
-  dim3 threads(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
-  dim3 blocks(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
+  dim3 block_dim(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
+  dim3 grid_dim(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
 
   unsigned char *d_gradient_matrix;
   float *d_angle_matrix;
@@ -166,7 +166,7 @@ void ProcessingUnitDevice::generate_edge_color(unsigned char *h_gradient_matrix,
   cudaMemcpy(d_angle_matrix, h_angle_matrix, matrix_dim.x * matrix_dim.y * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(d_output_image, h_output_image, 3 * matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyHostToDevice);
 
-  edge_color_kernel<<<blocks, threads>>>(d_gradient_matrix, d_angle_matrix, d_output_image, matrix_dim);
+  edge_color_kernel<<<grid_dim, block_dim>>>(d_gradient_matrix, d_angle_matrix, d_output_image, matrix_dim);
 
   cudaMemcpy(h_output_image, d_output_image, 3 * matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyDeviceToHost);
 

@@ -5,3 +5,4 @@ main
 *.ppm
 input/
 output/
+pull_gpu.sh

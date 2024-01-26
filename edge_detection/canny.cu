@@ -5,8 +5,8 @@
 #include "canny.hpp"
 
 void ProcessingUnitDevice::canny(unsigned char *h_gradient_matrix, float *h_angle_matrix, dim3 matrix_dim, int canny_min, int canny_max) {
-  dim3 threads(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
-  dim3 blocks(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
+  dim3 block_dim(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
+  dim3 grid_dim(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
   int h_done = 0;
 
   unsigned char *d_gradient_matrix;
@@ -23,17 +23,17 @@ void ProcessingUnitDevice::canny(unsigned char *h_gradient_matrix, float *h_angl
   cudaMemcpy(d_angle_matrix, h_angle_matrix, matrix_dim.x * matrix_dim.y * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(d_done, &h_done, sizeof(int), cudaMemcpyHostToDevice);
 
-  non_maximum_suppression_kernel<<<blocks, threads>>>(d_gradient_matrix, d_angle_matrix, matrix_dim);
-  histeresis_thresholding_init_kernel<<<blocks, threads>>>(d_gradient_matrix, d_ht_matrix, matrix_dim, canny_min, canny_max);
+  non_maximum_suppression_kernel<<<grid_dim, block_dim>>>(d_gradient_matrix, d_angle_matrix, matrix_dim);
+  histeresis_thresholding_init_kernel<<<grid_dim, block_dim>>>(d_gradient_matrix, d_ht_matrix, matrix_dim, canny_min, canny_max);
   while (h_done == 0) {
     h_done = 1;
     cudaMemcpy(d_done, &h_done, sizeof(int), cudaMemcpyHostToDevice);
-    histeresis_thresholding_loop_kernel<<<blocks, threads>>>(d_ht_matrix, matrix_dim, d_done);
+    histeresis_thresholding_loop_kernel<<<grid_dim, block_dim>>>(d_ht_matrix, matrix_dim, d_done);
     
-    Canny::transfer_edges_between_blocks_kernel<<<blocks, threads>>>(d_ht_matrix, matrix_dim, d_done);
+    Canny::transfer_edges_between_blocks_kernel<<<grid_dim, block_dim>>>(d_ht_matrix, matrix_dim, d_done);
     cudaMemcpy(&h_done, d_done, sizeof(int), cudaMemcpyDeviceToHost);
   }
-  histeresis_thresholding_end_kernel<<<blocks, threads>>>(d_gradient_matrix, d_ht_matrix, matrix_dim);
+  histeresis_thresholding_end_kernel<<<grid_dim, block_dim>>>(d_gradient_matrix, d_ht_matrix, matrix_dim);
 
   cudaMemcpy(h_gradient_matrix, d_gradient_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyDeviceToHost);
 

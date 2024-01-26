@@ -6,11 +6,11 @@
 #include "main.hpp"
 
 void ProcessingUnitDevice::cutout(unsigned char *h_rgb_image, unsigned char *h_edge_matrix, dim3 matrix_dim, int2 start_pixel, int threshold) {
-  dim3 threads(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
-  dim3 blocks(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
+  dim3 block_dim(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
+  dim3 grid_dim(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
   
   int h_done = 0;
-  dim3 macro_matrix_dim(blocks.x, blocks.y);
+  dim3 macro_matrix_dim(grid_dim.x, grid_dim.y);
 
   unsigned char *d_rgb_image;
   unsigned char *d_edge_matrix;
@@ -20,13 +20,13 @@ void ProcessingUnitDevice::cutout(unsigned char *h_rgb_image, unsigned char *h_e
 
   cudaMalloc(&d_rgb_image, 3 * matrix_dim.x * matrix_dim.y * sizeof(unsigned char));
   cudaMalloc(&d_edge_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char));
-  cudaMalloc(&d_macro_cutout_matrix, blocks.x * blocks.y * sizeof(char));
+  cudaMalloc(&d_macro_cutout_matrix, macro_matrix_dim.x * macro_matrix_dim.y * sizeof(char));
   cudaMalloc(&d_micro_cutout_matrix, matrix_dim.x * matrix_dim.y * sizeof(char));
   cudaMalloc(&d_done, sizeof(int));
 
   cudaMemcpy(d_edge_matrix, h_edge_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyHostToDevice);
   
-  draw_edges_on_cutout_matrix_kernel<<<blocks, threads>>>(
+  draw_edges_on_cutout_matrix_kernel<<<grid_dim, block_dim>>>(
     d_edge_matrix,
     d_micro_cutout_matrix,
     matrix_dim,
@@ -38,27 +38,27 @@ void ProcessingUnitDevice::cutout(unsigned char *h_rgb_image, unsigned char *h_e
   while (h_done == 0) {
     h_done = 1; // Let's assume that the process is done
     cudaMemcpy(d_done, &h_done, sizeof(int), cudaMemcpyHostToDevice);
-    cutout_algorithm_kernel<<<blocks, threads>>>(d_macro_cutout_matrix, macro_matrix_dim, d_done);
+    cutout_algorithm_kernel<<<grid_dim, block_dim>>>(d_macro_cutout_matrix, macro_matrix_dim, d_done);
     
-    Cutout::transfer_edges_between_blocks_kernel<<<blocks, threads>>>(d_macro_cutout_matrix, macro_matrix_dim, d_done);
+    Cutout::transfer_edges_between_blocks_kernel<<<grid_dim, block_dim>>>(d_macro_cutout_matrix, macro_matrix_dim, d_done);
     cudaMemcpy(&h_done, d_done, sizeof(int), cudaMemcpyDeviceToHost);
   }
   
-  apply_macro_to_micro_cutout_matrix_kernel<<<blocks, threads>>>(d_macro_cutout_matrix, d_micro_cutout_matrix, macro_matrix_dim, matrix_dim);
+  apply_macro_to_micro_cutout_matrix_kernel<<<grid_dim, block_dim>>>(d_macro_cutout_matrix, d_micro_cutout_matrix, macro_matrix_dim, matrix_dim);
   h_done = 0;
 
   // Micro
   while (h_done == 0) {
     h_done = 1; // Let's assume that the process is done
     cudaMemcpy(d_done, &h_done, sizeof(int), cudaMemcpyHostToDevice);
-    cutout_algorithm_kernel<<<blocks, threads>>>(d_micro_cutout_matrix, matrix_dim, d_done);
+    cutout_algorithm_kernel<<<grid_dim, block_dim>>>(d_micro_cutout_matrix, matrix_dim, d_done);
     
-    Cutout::transfer_edges_between_blocks_kernel<<<blocks, threads>>>(d_micro_cutout_matrix, matrix_dim, d_done);
+    Cutout::transfer_edges_between_blocks_kernel<<<grid_dim, block_dim>>>(d_micro_cutout_matrix, matrix_dim, d_done);
     cudaMemcpy(&h_done, d_done, sizeof(int), cudaMemcpyDeviceToHost);
   }
   
   cudaMemcpy(d_rgb_image, h_rgb_image, 3 * matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyHostToDevice);
-  apply_cutout_kernel<<<blocks, threads>>>(d_micro_cutout_matrix, d_rgb_image, matrix_dim, start_pixel);
+  apply_cutout_kernel<<<grid_dim, block_dim>>>(d_micro_cutout_matrix, d_rgb_image, matrix_dim, start_pixel);
   cudaMemcpy(h_rgb_image, d_rgb_image, 3 * matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyDeviceToHost);
 
   cudaFree(d_rgb_image);

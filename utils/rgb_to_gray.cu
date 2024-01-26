@@ -25,6 +25,8 @@ __device__ __host__ unsigned char rgb_to_gray_core(int2 index, unsigned char *rg
 
 void ProcessingUnitDevice::rgb_to_gray(RGBImage *h_rgb_image, GrayImage *h_gray_image) {
   dim3 image_dim(h_rgb_image->width, h_rgb_image->height);
+  dim3 block_dim(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
+  dim3 grid_dim(ceil((float) image_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) image_dim.y/MATRIX_SIZE_PER_BLOCK));
 
   unsigned char *d_rgb_image;
   unsigned char *d_gray_image;
@@ -34,10 +36,7 @@ void ProcessingUnitDevice::rgb_to_gray(RGBImage *h_rgb_image, GrayImage *h_gray_
 
   cudaMemcpy(d_rgb_image, h_rgb_image->data, 3 * image_dim.x * image_dim.y, cudaMemcpyHostToDevice);
 
-  dim3 threads = dim3(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
-  dim3 blocks = dim3(ceil((float) image_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) image_dim.y/MATRIX_SIZE_PER_BLOCK));
-
-  rgb_to_gray_kernel<<<blocks, threads>>>(d_rgb_image, d_gray_image, image_dim);
+  rgb_to_gray_kernel<<<grid_dim, block_dim>>>(d_rgb_image, d_gray_image, image_dim);
 
   cudaMemcpy(h_gray_image->data, d_gray_image, image_dim.x * image_dim.y, cudaMemcpyDeviceToHost);
 

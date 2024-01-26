@@ -9,6 +9,8 @@
  * Applies a gaussian blur over a matrix.
  **/
 void ProcessingUnitDevice::gaussian_blur(unsigned char *h_matrix, dim3 matrix_dim) {
+  dim3 block_dim(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
+  dim3 grid_dim(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
   const int KERNEL_WIDTH = 3;
   const float GAUSSIAN_BLUR_KERNEL[KERNEL_WIDTH*KERNEL_WIDTH] = {1/16.0, 2/16.0, 1/16.0, 
                                                                  2/16.0, 4/16.0, 2/16.0, 
@@ -18,16 +20,15 @@ void ProcessingUnitDevice::gaussian_blur(unsigned char *h_matrix, dim3 matrix_di
   unsigned char *d_input_matrix;
   int *d_output_matrix;
   float *d_kernel;
+
   cudaMalloc(&d_input_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char));
   cudaMalloc(&d_output_matrix, matrix_dim.x * matrix_dim.y * sizeof(int));
-  cudaMalloc(&d_kernel, KERNEL_WIDTH*KERNEL_WIDTH * sizeof(float));
+  cudaMalloc(&d_kernel, KERNEL_WIDTH * KERNEL_WIDTH * sizeof(float));
 
   cudaMemcpy(d_input_matrix, h_matrix, matrix_dim.x*matrix_dim.y*sizeof(unsigned char), cudaMemcpyHostToDevice);
   cudaMemcpy(d_kernel, GAUSSIAN_BLUR_KERNEL, KERNEL_WIDTH*KERNEL_WIDTH * sizeof(int), cudaMemcpyHostToDevice);
 
-  dim3 threads(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
-  dim3 blocks(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
-  convolution_kernel<<<blocks, threads>>>(d_input_matrix, d_output_matrix, matrix_dim, d_kernel, KERNEL_WIDTH);
+  convolution_kernel<<<grid_dim, block_dim>>>(d_input_matrix, d_output_matrix, matrix_dim, d_kernel, KERNEL_WIDTH);
  
   cudaMemcpy(h_int_matrix, d_output_matrix, matrix_dim.x*matrix_dim.y*sizeof(int), cudaMemcpyDeviceToHost);
 
