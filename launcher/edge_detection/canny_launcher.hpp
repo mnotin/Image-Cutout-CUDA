@@ -1,5 +1,5 @@
 #ifndef CANNY_LAUNCHER_HPP
-#define CANNY_LAUNCHER_RHPP
+#define CANNY_LAUNCHER_HPP
 
 
 namespace ProcessingUnitDevice {
