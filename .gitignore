@@ -6,3 +6,4 @@ main
 input/
 output/
 pull_gpu.sh
+*.o
