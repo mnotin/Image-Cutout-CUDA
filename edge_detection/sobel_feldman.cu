@@ -55,7 +55,7 @@ void ProcessingUnitDevice::sobel_feldman(unsigned char *h_input_matrix, unsigned
   
   // Global gradient
   global_gradient_kernel<<<blocks, threads, 0, cuda_streams[0]>>>(d_gradient_matrix, d_horizontal_gradient, d_vertical_gradient, matrix_dim); 
-  cudaMemcpyAsync(h_gradient_matrix, d_gradient_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyDeviceToHost, cuda_streams[1]);
+  cudaMemcpyAsync(h_gradient_matrix, d_gradient_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyDeviceToHost, cuda_streams[0]);
  
   // Angle of the gradient
   angle_kernel<<<blocks, threads, 0, cuda_streams[1]>>>(d_angle_matrix, d_horizontal_gradient, d_vertical_gradient, matrix_dim);
