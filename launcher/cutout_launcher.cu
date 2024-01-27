@@ -104,7 +104,6 @@ void ProcessingUnitDevice::cutout(unsigned char *h_rgb_image, unsigned char *h_e
     tracking_start_pixel->x = ((h_tracking_bottom_right.x - h_tracking_top_left.x) / 2) + h_tracking_top_left.x;
     tracking_start_pixel->y = ((h_tracking_bottom_right.y - h_tracking_top_left.y) / 2) + h_tracking_top_left.y;
   }
-  std::cout <<  tracking_start_pixel->x << "-" << tracking_start_pixel->y << std::endl;
    
   cudaMemcpy(d_rgb_image, h_rgb_image, 3 * matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyHostToDevice);
   apply_cutout_kernel<<<grid_dim, block_dim>>>(d_micro_cutout_matrix, d_rgb_image, matrix_dim, cutout_start_pixel);
@@ -222,7 +221,6 @@ void ProcessingUnitHost::cutout(unsigned char *rgb_image, unsigned char *edge_ma
     tracking_start_pixel->x = ((tracking_bottom_right.x - tracking_top_left.x) / 2) + tracking_top_left.x;
     tracking_start_pixel->y = ((tracking_bottom_right.y - tracking_top_left.y) / 2) + tracking_top_left.y;
   }
-  std::cout <<  tracking_start_pixel->x << "-" << tracking_start_pixel->y << std::endl;
   
   for (index.y = 0; index.y < matrix_dim.y; index.y++) {
     for (index.x = 0; index.x < matrix_dim.x; index.x++) {

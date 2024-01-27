@@ -61,7 +61,6 @@ void test_canny(std::string filename, int2 cutout_start_pixel, int2 *tracking_st
   }
   writePGM("output/sf_gradient_output.pgm", gradient_image);
   writePPM("output/edge_color_output.ppm", edge_color_image);
-  std::cout << "Fait" << std::endl;
 
   GrayImage *buffer_gray = createPGM(gradient_image->width, gradient_image->height);
   RGBImage *buffer_rgb = createPPM(gradient_image->width, gradient_image->height);
@@ -78,7 +77,6 @@ void test_canny(std::string filename, int2 cutout_start_pixel, int2 *tracking_st
     } else if (processing_unit == ProcessingUnit::Host) {
       ProcessingUnitHost::canny(buffer_gray->data, angle_image, gray_image_dim, i, canny_max);
     }
-    std::cout << "Fait2" << std::endl;
 
     // Create the name of the output file
     const char *prefix_gray = "output/canny_output";
@@ -98,7 +96,6 @@ void test_canny(std::string filename, int2 cutout_start_pixel, int2 *tracking_st
     } else if (processing_unit == ProcessingUnit::Host) {
       ProcessingUnitHost::cutout(buffer_rgb->data, buffer_gray->data, gray_image_dim, cutout_start_pixel, tracking_start_pixel, 0);
     }
-    std::cout << "Fait3" << std::endl;
 
     const char *prefix_rgb = "output/cutout_output";
     char number_rgb[4] = "000";
