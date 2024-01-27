@@ -8,7 +8,8 @@
 
 int main(int argc, char **argv) {
   //char *filename;
-  int2 start_pixel;
+  int2 cutout_start_pixel = make_int2(0, 0);
+  int2 tracking_start_pixel = make_int2(-1, -1);
   EdgeDetection edge_detection = EdgeDetection::Canny;
   ProcessingUnit processing_unit = ProcessingUnit::Device;
   int canny_min_val = 50;
@@ -25,11 +26,15 @@ int main(int argc, char **argv) {
     int filename_found = 0;
 
     for (i = 1; i < argc && !bad_usage; i++) {
-      if (strcmp(argv[i], "--start-pixel") == 0) {
-        start_pixel.x = atoi(argv[i+1]);
-        start_pixel.y = atoi(argv[i+2]);
+      if (strcmp(argv[i], "--cutout-start-pixel") == 0) {
+        cutout_start_pixel.x = atoi(argv[i+1]);
+        cutout_start_pixel.y = atoi(argv[i+2]);
         i += 2;
-      } else if (strcmp(argv[i], "--edge-detection") == 0) {
+      } else if (strcmp(argv[i], "--tracking-start-pixel") == 0) {
+        tracking_start_pixel.x = atoi(argv[i+1]);
+        tracking_start_pixel.y = atoi(argv[i+2]);
+        i += 2;
+      }else if (strcmp(argv[i], "--edge-detection") == 0) {
         if (strcmp(argv[i+1], "sobel") == 0) {
           edge_detection = EdgeDetection::SobelFeldman;
           i += 1;
@@ -100,9 +105,9 @@ int main(int argc, char **argv) {
     file.close();
 
     if (edge_detection == EdgeDetection::SobelFeldman) {
-      test_sobel_feldman(filename, start_pixel, processing_unit);
+      test_sobel_feldman(filename, cutout_start_pixel, &tracking_start_pixel, processing_unit);
     } else if (edge_detection == EdgeDetection::Canny) {
-      test_canny(filename, start_pixel, canny_min_val, canny_max_val, canny_sample_offset, processing_unit, file_index);
+      test_canny(filename, cutout_start_pixel, &tracking_start_pixel, canny_min_val, canny_max_val, canny_sample_offset, processing_unit, file_index);
     }
     if (canny_sample_offset != 0)
       break; // We sample only the first image
@@ -134,7 +139,8 @@ int main(int argc, char **argv) {
 
 void print_help() {
   std::cout << "Usage: ./main [OPTION] file" << std::endl;
-  std::cout << "\t--start-pixel <x> <y>\t\t\tPixel coordinates where the cutout algorithm should start. (default: 0 0)" << std::endl;
+  std::cout << "\t--cutout-start-pixel <x> <y>\t\t\tPixel coordinates where the cutout algorithm should start. (default: 0 0)" << std::endl;
+  std::cout << "\t--tracking-start-pixel <x> <y>\t\t\tPixel coordinates inside the object to track. (default: center of the image)" << std::endl;
 
   std::cout << "\t--edge-detection <method>\t\tSpecify the method to use to process edge detection. (default: canny)" << std::endl;
   std::cout << "\t\t\t\t\t\tPermissible methods are 'sobel' and 'canny'." << std::endl;

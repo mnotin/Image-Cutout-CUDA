@@ -26,9 +26,5 @@ OBJ=main.o \
 main: $(OBJ)
 	nvcc -o main --gpu-architecture=sm_50 $(OBJ) -lm
 
-debug: $(SRC)
-	nvcc --gpu-architecture=sm_50 --device-c -G -g $(SRC)
-	nvcc -o main --gpu-architecture=sm_50 -G -g *.o -lm
-
 clean:
 	rm -f $(OBJ) main

@@ -3,12 +3,14 @@
 
 
 namespace ProcessingUnitDevice {
-  void cutout(unsigned char *h_rgb_image, unsigned char *h_edge_matrix, dim3 matrix_dim, int2 start_pixel, int threshold);
+  void cutout(unsigned char *h_rgb_image, unsigned char *h_edge_matrix, dim3 matrix_dim,
+              int2 cutout_start_pixel, int2 *tracking_start_pixel, int threshold);
 }
 
 
 namespace ProcessingUnitHost {
-  void cutout(unsigned char *rgb_image, unsigned char *edge_matrix, dim3 matrix_dim, int2 start_pixel, int threshold);
+  void cutout(unsigned char *rgb_image, unsigned char *edge_matrix, dim3 matrix_dim,
+              int2 cutout_start_pixel, int2 *tracking_start_pixel, int threshold);
 }
 
 

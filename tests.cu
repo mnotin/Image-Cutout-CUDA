@@ -10,7 +10,7 @@
 #include "launcher/edge_detection/sobel_feldman_launcher.hpp"
 #include "launcher/edge_detection/canny_launcher.hpp"
 
-void test_sobel_feldman(std::string filename, int2 start_pixel, ProcessingUnit processing_unit) {
+void test_sobel_feldman(std::string filename, int2 cutout_start_pixel, int2 *tracking_start_pixel, ProcessingUnit processing_unit) {
   RGBImage *rgb_image = readPPM(filename.c_str());
   GrayImage *gray_image = createPGM(rgb_image->width, rgb_image->height);
   GrayImage *gradient_image = createPGM(rgb_image->width, rgb_image->height);
@@ -19,6 +19,11 @@ void test_sobel_feldman(std::string filename, int2 start_pixel, ProcessingUnit p
 
   dim3 rgb_image_dim(rgb_image->width, rgb_image->height);
   dim3 gray_image_dim(gray_image->width, gray_image->height);
+
+  if (tracking_start_pixel->x == -1) {
+    tracking_start_pixel->x = rgb_image_dim.x / 2;
+    tracking_start_pixel->y = rgb_image_dim.y / 2;
+  }
 
   if (rgb_image == NULL) {
     std::cout << "Error reading the image" << std::endl;
@@ -45,7 +50,7 @@ void test_sobel_feldman(std::string filename, int2 start_pixel, ProcessingUnit p
     writePPM("output/edge_color_output.ppm", edge_color_image);
 
     // 4. Last step, cutout the object selected by the user
-    ProcessingUnitDevice::cutout(rgb_image->data, gradient_image->data, gray_image_dim, start_pixel, 0);
+    ProcessingUnitDevice::cutout(rgb_image->data, gradient_image->data, gray_image_dim, cutout_start_pixel, tracking_start_pixel, 0);
   } else if (processing_unit == ProcessingUnit::Host) {
     // CPU
     // 1. First step, convert the picture into grayscale
@@ -65,7 +70,7 @@ void test_sobel_feldman(std::string filename, int2 start_pixel, ProcessingUnit p
     writePPM("output/edge_color_output.ppm", edge_color_image);
     
     // 4. Last step, cutout the object selected by the user
-    ProcessingUnitHost::cutout(rgb_image->data, gradient_image->data, gray_image_dim, start_pixel, 0);
+    ProcessingUnitHost::cutout(rgb_image->data, gradient_image->data, gray_image_dim, cutout_start_pixel, tracking_start_pixel, 0);
   }
   
   writePPM("output/cutout_output.ppm", rgb_image);
@@ -77,7 +82,7 @@ void test_sobel_feldman(std::string filename, int2 start_pixel, ProcessingUnit p
   delete [] angle_image;
 }
 
-void test_canny(std::string filename, int2 start_pixel, int canny_min,
+void test_canny(std::string filename, int2 cutout_start_pixel, int2 *tracking_start_pixel, int canny_min,
   int canny_max, int canny_sample_offset, ProcessingUnit processing_unit, int file_index
 ) {
   RGBImage *rgb_image = readPPM(filename.c_str());
@@ -88,6 +93,11 @@ void test_canny(std::string filename, int2 start_pixel, int canny_min,
 
   dim3 rgb_image_dim(rgb_image->width, rgb_image->height);
   dim3 gray_image_dim(gray_image->width, gray_image->height);
+ 
+  if (tracking_start_pixel->x == -1) {
+    tracking_start_pixel->x = rgb_image_dim.x / 2;
+    tracking_start_pixel->y = rgb_image_dim.y / 2;
+  }
   
   if (rgb_image == NULL) {
     std::cout << "Error reading the image" << std::endl;
@@ -138,7 +148,7 @@ void test_canny(std::string filename, int2 start_pixel, int canny_min,
     
       // 4. Last step, cutout the object selected by the user
       memcpy(buffer_rgb->data, rgb_image->data, sizeof(unsigned char) * gradient_image->width * gradient_image->height * 3);
-      ProcessingUnitDevice::cutout(buffer_rgb->data, buffer_gray->data, gray_image_dim, start_pixel, 0);
+      ProcessingUnitDevice::cutout(buffer_rgb->data, buffer_gray->data, gray_image_dim, cutout_start_pixel, tracking_start_pixel, 0);
 
       const char *prefix_rgb = "output/cutout_output";
       char number_rgb[4] = "000";
@@ -202,7 +212,7 @@ void test_canny(std::string filename, int2 start_pixel, int canny_min,
     
       // 4. Last step, cutout the object selected by the user
       memcpy(buffer_rgb->data, rgb_image->data, sizeof(unsigned char) * gradient_image->width * gradient_image->height * 3);
-      ProcessingUnitHost::cutout(buffer_rgb->data, buffer_gray->data, gray_image_dim, start_pixel, 0);
+      ProcessingUnitHost::cutout(buffer_rgb->data, buffer_gray->data, gray_image_dim, cutout_start_pixel, tracking_start_pixel, 0);
 
       const char *prefix_rgb = "output/cutout_output";
       char number_rgb[4] = "000";
