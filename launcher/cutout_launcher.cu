@@ -134,14 +134,58 @@ void ProcessingUnitHost::cutout(unsigned char *rgb_image, unsigned char *edge_ma
   int2 tracking_top_left = *tracking_start_pixel;
   int2 tracking_bottom_right = *tracking_start_pixel;
   
+  dim3 grid_dim(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
+  dim3 macro_matrix_dim(grid_dim.x, grid_dim.y);
+  char macro_cutout_matrix[macro_matrix_dim.x * macro_matrix_dim.y];
+  for (int i = 0; i < grid_dim.y; i++) {
+    for (int j = 0; j < grid_dim.x; j++) {
+      macro_cutout_matrix[i*grid_dim.x + j] = 'D';
+    }
+  }
+  
   int2 index;
   for (index.y = 0; index.y < matrix_dim.y; index.y++) {
     for (index.x = 0; index.x < matrix_dim.x; index.x++) {
+      dim3 block_index(index.x / MATRIX_SIZE_PER_BLOCK, index.y / MATRIX_SIZE_PER_BLOCK);
       cutout_matrix[index.y*matrix_dim.x + index.x] =
         draw_edges_on_cutout_matrix_core(index, edge_matrix, matrix_dim, cutout_start_pixel, *tracking_start_pixel, threshold);
+
+      if (cutout_matrix[index.y*matrix_dim.x + index.x] == 'B') {
+        macro_cutout_matrix[block_index.y*grid_dim.x + block_index.x] = 'B';
+      } else if (cutout_matrix[index.y*matrix_dim.x + index.x] == 'M' && 
+                 macro_cutout_matrix[block_index.y*grid_dim.x + block_index.x] != 'B') {
+        macro_cutout_matrix[block_index.y*grid_dim.x + block_index.x] = 'M';
+      } else if (cutout_matrix[index.y*matrix_dim.x + index.x] == 'D' &&
+                 macro_cutout_matrix[block_index.y*grid_dim.x + block_index.x] != 'B' &&
+                 macro_cutout_matrix[block_index.y*grid_dim.x + block_index.x] != 'M') {
+        macro_cutout_matrix[block_index.y*grid_dim.x + block_index.x] = 'D';
+      }
+    }
+  }
+  
+  // Macro
+  while (done == 0) {
+    done = 1;
+    for (index.y = 0; index.y < macro_matrix_dim.y; index.y++) {
+      for (index.x = 0; index.x < macro_matrix_dim.x; index.x++) {
+        cutout_algorithm_core(index, macro_cutout_matrix, macro_matrix_dim, make_int2(grid_dim.x, grid_dim.y), &done, cutout_looking_pixels);
+      }
+    }
+  }
+  
+  // Apply macro to micro cutout
+  for (index.y = 0; index.y < matrix_dim.y; index.y++) {
+    for (index.x = 0; index.x < matrix_dim.x; index.x++) {
+      dim3 block_index(index.x / MATRIX_SIZE_PER_BLOCK, index.y / MATRIX_SIZE_PER_BLOCK);
+
+      if (macro_cutout_matrix[block_index.y*grid_dim.x + block_index.x] == 'M') {
+        cutout_matrix[index.y*matrix_dim.x + index.x] = 'M';
+      }
     }
   }
 
+  done = 0;
+  // Micro
   while (done == 0) {
     done = 1;
     for (index.y = 0; index.y < matrix_dim.y; index.y++) {
