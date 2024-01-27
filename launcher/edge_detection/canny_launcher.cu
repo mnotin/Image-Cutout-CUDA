@@ -51,6 +51,7 @@ void ProcessingUnitHost::canny(unsigned char *gradient_matrix, float *angle_matr
   unsigned char gradient_matrix_buffer[matrix_dim.x * matrix_dim.y];
   int2 index;
   
+  // First step: non maximum suppression
   for (index.y = 0; index.y < matrix_dim.y; index.y++) {
     for (index.x = 0; index.x < matrix_dim.x; index.x++) {
       gradient_matrix_buffer[index.y*matrix_dim.x + index.x] = gradient_matrix[index.y*matrix_dim.x + index.x];
@@ -66,13 +67,15 @@ void ProcessingUnitHost::canny(unsigned char *gradient_matrix, float *angle_matr
       gradient_matrix[index.y*matrix_dim.x + index.x] = gradient_matrix_buffer[index.y*matrix_dim.x + index.x];
     }
   }
-  
+ 
+  // Second step: histeresis thresholding init
   for (index.y = 0; index.y < matrix_dim.y; index.y++) {
     for (index.x = 0; index.x < matrix_dim.x; index.x++) {
       ht_matrix[index.y*matrix_dim.x + index.x] = histeresis_thresholding_init_core(index, gradient_matrix, matrix_dim, canny_min, canny_max);
     }
   }
 
+  // Third step: histeresis thresholding loop
   while (done == 0) {
     done = 1;
 
@@ -83,6 +86,7 @@ void ProcessingUnitHost::canny(unsigned char *gradient_matrix, float *angle_matr
     }
   }
 
+  // Fourth step: histeresis thresholding end
   for (index.y = 0; index.y < matrix_dim.y; index.y++) {
     for (index.x = 0; index.x < matrix_dim.x; index.x++) {
       gradient_matrix[index.y*matrix_dim.x + index.x] = histeresis_thresholding_end_core(index, ht_matrix, matrix_dim);

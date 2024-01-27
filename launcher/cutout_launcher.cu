@@ -129,14 +129,10 @@ void ProcessingUnitHost::cutout(unsigned char *rgb_image, unsigned char *edge_ma
 ) {
   int done = 0;
   char cutout_matrix[matrix_dim.y * matrix_dim.x];
-  char cutout_looking_pixels[2] = {'B', '\0'};
+  char cutout_looking_pixels[2] = {'D', '\0'};
   char tracking_looking_pixels[3] = {'B', 'D', '\0'};
-  
-  for (int i = 0; i < matrix_dim.y; i++) {
-    for (int j = 0; j < matrix_dim.x; j++) {
-      cutout_matrix[i*matrix_dim.x + j] = 'D';
-    }
-  }
+  int2 tracking_top_left = *tracking_start_pixel;
+  int2 tracking_bottom_right = *tracking_start_pixel;
   
   int2 index;
   for (index.y = 0; index.y < matrix_dim.y; index.y++) {
@@ -163,9 +159,26 @@ void ProcessingUnitHost::cutout(unsigned char *rgb_image, unsigned char *edge_ma
     for (index.y = 0; index.y < matrix_dim.y; index.y++) {
       for (index.x = 0; index.x < matrix_dim.x; index.x++) {
         cutout_algorithm_core(index, cutout_matrix, matrix_dim, make_int2(matrix_dim.x, matrix_dim.y), &done, tracking_looking_pixels, 'T');
+
+        if (index.x < tracking_top_left.x) {
+          tracking_top_left.x = index.x;
+        } else if (tracking_bottom_right.x < index.x) {
+          tracking_bottom_right.x = index.x;
+        } else if (index.y < tracking_top_left.y) {
+          tracking_top_left.y = index.y;
+        } else if (tracking_bottom_right.y < index.y) {
+          tracking_bottom_right.y = index.y;
+        }
       }
     }
   }
+  if (abs(tracking_start_pixel->x - (((tracking_bottom_right.x - tracking_top_left.x) / 2) + tracking_top_left.x)) < 99 &&
+      abs(tracking_start_pixel->y - (((tracking_bottom_right.y - tracking_top_left.y) / 2) + tracking_top_left.y)) < 99) {
+    // Check that the center of gravity did not move too much
+    tracking_start_pixel->x = ((tracking_bottom_right.x - tracking_top_left.x) / 2) + tracking_top_left.x;
+    tracking_start_pixel->y = ((tracking_bottom_right.y - tracking_top_left.y) / 2) + tracking_top_left.y;
+  }
+  std::cout <<  tracking_start_pixel->x << "-" << tracking_start_pixel->y << std::endl;
   
   for (index.y = 0; index.y < matrix_dim.y; index.y++) {
     for (index.x = 0; index.x < matrix_dim.x; index.x++) {
