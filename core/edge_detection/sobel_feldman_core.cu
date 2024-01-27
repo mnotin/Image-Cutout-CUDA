@@ -1,6 +1,7 @@
 #include <math.h>
 
 #include "sobel_feldman_core.hpp"
+#include "edge_detection_core.hpp"
 
 __device__ __host__ unsigned char global_gradient_core(int2 index, int *horizontal_edges, int *vertical_edges, dim3 matrix_dim) {
   int g_x = horizontal_edges[index.y * matrix_dim.x + index.x];
@@ -23,17 +24,17 @@ __device__ __host__ void edge_color_core(int2 index, unsigned char *gradient_mat
   const int INT_INDEX = index.y*image_dim.x + index.x;
   
   if (50 < gradient_matrix[INT_INDEX]) {
-    if (get_color_sobel(ANGLE) == 'Y') {
+    if (get_color(ANGLE) == 'Y') {
       // Horizontal gradient direction : Yellow
       output_image[3 * (INT_INDEX)] = 255;
       output_image[3 * (INT_INDEX) + 1] = 255; 
       output_image[3 * (INT_INDEX) + 2] = 0; 
-    } else if (get_color_sobel(ANGLE) == 'G') {
+    } else if (get_color(ANGLE) == 'G') {
       // Top right gradient direction : Green
       output_image[3 * (INT_INDEX)] = 0; 
       output_image[3 * (INT_INDEX) + 1] = 255; 
       output_image[3 * (INT_INDEX) + 2] = 0; 
-    } else if (get_color_sobel(ANGLE) == 'R')  {
+    } else if (get_color(ANGLE) == 'R')  {
       // Top left gradient direction : Red
       output_image[3 * (INT_INDEX)] = 255; 
       output_image[3 * (INT_INDEX) + 1] = 0; 
@@ -49,24 +50,4 @@ __device__ __host__ void edge_color_core(int2 index, unsigned char *gradient_mat
     output_image[3 * (INT_INDEX) + 1] = 0; 
     output_image[3 * (INT_INDEX) + 2] = 0; 
   }
-}
-
-__device__ __host__ char get_color_sobel(float angle) {
-  char color = ' ';
-
-  if (angle < M_PI / 8.0 || (M_PI / 8.0) * 7 < angle) {
-    // Horizontal gradient direction : Yellow
-    color = 'Y';
-  } else if (M_PI / 8.0 < angle && angle < (M_PI / 8.0) * 3) {
-    // Top right gradient direction : Green
-    color = 'G';
-  } else if ((M_PI / 8.0) * 5 < angle && angle < (M_PI / 8.0) * 7) {
-    // Top left gradient direction : Red
-    color = 'R';
-  } else {
-    // Vertical gradient direction : Blue
-    color = 'B';
-  }
-
-  return color;
 }

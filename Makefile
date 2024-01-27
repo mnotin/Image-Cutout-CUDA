@@ -1,6 +1,7 @@
 OBJ=main.o \
     tests.o \
     img.o \
+    core/edge_detection/edge_detection_core.o \
     launcher/edge_detection/sobel_feldman_launcher.o \
     kernel/edge_detection/sobel_feldman_kernel.o \
     core/edge_detection/sobel_feldman_core.o \

@@ -1,47 +1,48 @@
 #include <math.h>
 
 #include "canny_core.hpp"
+#include "edge_detection_core.hpp"
 
 __device__ __host__ unsigned char non_maximum_suppression_core(int2 index, unsigned char *gradient_matrix, float *angle_matrix, dim3 matrix_dim) {
   const int INT_INDEX = index.y*matrix_dim.x + index.x;
   const float ANGLE = angle_matrix[INT_INDEX] + M_PI_2;
   unsigned char final_value = gradient_matrix[INT_INDEX];
 
-  if (get_color_canny(ANGLE) == 'Y') {
+  if (get_color(ANGLE) == 'Y') {
     // Vertical gradient direction : Yellow
     if (0 < index.y && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - matrix_dim.x] &&
-          get_color_canny(angle_matrix[INT_INDEX - matrix_dim.x] + M_PI_2) == 'Y') {
+          get_color(angle_matrix[INT_INDEX - matrix_dim.x] + M_PI_2) == 'Y') {
       final_value = 0;
     } else if (index.y < matrix_dim.y - 1 && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + matrix_dim.x] &&
-        get_color_canny(angle_matrix[INT_INDEX + matrix_dim.x] + M_PI_2) == 'Y') {
+        get_color(angle_matrix[INT_INDEX + matrix_dim.x] + M_PI_2) == 'Y') {
       final_value = 0;
     }
-  } else if (get_color_canny(ANGLE) == 'G') {
+  } else if (get_color(ANGLE) == 'G') {
     // Top right gradient direction : Green
     if (index.x < matrix_dim.x-1 && 0 < index.y && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - matrix_dim.x + 1] &&
-      get_color_canny(angle_matrix[INT_INDEX - matrix_dim.x + 1] + M_PI_2) == 'G') {
+      get_color(angle_matrix[INT_INDEX - matrix_dim.x + 1] + M_PI_2) == 'G') {
       final_value = 0;
     } else if (0 < index.x && index.y < matrix_dim.y-1 && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + matrix_dim.x - 1] &&
-      get_color_canny(angle_matrix[INT_INDEX + matrix_dim.x - 1] + M_PI_2) == 'G') {
+      get_color(angle_matrix[INT_INDEX + matrix_dim.x - 1] + M_PI_2) == 'G') {
       final_value = 0;
     }
-  } else if (get_color_canny(ANGLE) == 'R') {
+  } else if (get_color(ANGLE) == 'R') {
     // Top left gradient direction : Red
     if (0 < index.x && 0 < index.y && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - matrix_dim.x - 1] &&
-      get_color_canny(angle_matrix[INT_INDEX - matrix_dim.x - 1] + M_PI_2) == 'R') {
+      get_color(angle_matrix[INT_INDEX - matrix_dim.x - 1] + M_PI_2) == 'R') {
       final_value = 0;
     } else if (index.x < matrix_dim.x-1 && index.y < matrix_dim.y-1 &&
       gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + matrix_dim.x + 1] &&
-      get_color_canny(angle_matrix[INT_INDEX + matrix_dim.x + 1] + M_PI_2) == 'R') {
+      get_color(angle_matrix[INT_INDEX + matrix_dim.x + 1] + M_PI_2) == 'R') {
       final_value = 0;
     }
-  } else if (get_color_canny(ANGLE) == 'B')  {
+  } else if (get_color(ANGLE) == 'B')  {
     // Horizontal gradient direction : Blue
     if (0 < index.x && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX - 1] &&
-      get_color_canny(angle_matrix[INT_INDEX - 1] + M_PI_2) == 'B') {
+      get_color(angle_matrix[INT_INDEX - 1] + M_PI_2) == 'B') {
       final_value = 0;
     } else if (index.x < matrix_dim.x - 1 && gradient_matrix[INT_INDEX] < gradient_matrix[INT_INDEX + 1] &&
-      get_color_canny(angle_matrix[INT_INDEX + 1] + M_PI_2) == 'B') {
+      get_color(angle_matrix[INT_INDEX + 1] + M_PI_2) == 'B') {
       final_value = 0;
     }
   }
@@ -126,24 +127,4 @@ __device__ __host__ unsigned char histeresis_thresholding_end_core(int2 index, c
   }
 
   return result;
-}
-
-__device__ __host__ char get_color_canny(float angle) {
-  char color = ' ';
-
-  if (angle < M_PI / 8.0 || (M_PI / 8.0) * 7 < angle) {
-    // Horizontal gradient direction : Yellow
-    color = 'Y';
-  } else if (M_PI / 8.0 < angle && angle < (M_PI / 8.0) * 3) {
-    // Top right gradient direction : Green
-    color = 'G';
-  } else if ((M_PI / 8.0) * 5 < angle && angle < (M_PI / 8.0) * 7) {
-    // Top left gradient direction : Red
-    color = 'R';
-  } else {
-    // Vertical gradient direction : Blue
-    color = 'B';
-  }
-
-  return color;
 }

@@ -8,6 +8,5 @@ __device__ __host__ char histeresis_thresholding_init_core(int2 index, unsigned 
 __device__ __host__ void histeresis_thresholding_loop_core(int2 index, char *ht_matrix, dim3 matrix_dim, int2 read_limit, int *done);
 
 __device__ __host__ unsigned char histeresis_thresholding_end_core(int2 index, char *ht_matrix, dim3 matrix_dim);
-__device__ __host__ char get_color_canny(float angle);
 
 #endif // CANNY_CORE_HPP
