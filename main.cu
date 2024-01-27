@@ -7,7 +7,6 @@
 #include "tests.hpp"
 
 int main(int argc, char **argv) {
-  //char *filename;
   int2 cutout_start_pixel = make_int2(0, 0);
   int2 tracking_start_pixel = make_int2(-1, -1);
   ProcessingUnit processing_unit = ProcessingUnit::Device;
@@ -21,7 +20,7 @@ int main(int argc, char **argv) {
     return 0;
   } else {
     int i;
-    int bad_usage = 0;
+    bool bad_usage = false;
 
     for (i = 1; i < argc && !bad_usage; i++) {
       if (strcmp(argv[i], "--cutout-start-pixel") == 0) {
@@ -38,7 +37,7 @@ int main(int argc, char **argv) {
         i += 2;
 
         if (canny_min_val < 0 || 255 < canny_max_val || canny_max_val < canny_min_val) {
-          bad_usage = 1;
+          bad_usage = true;
         }
       } else if (strcmp(argv[i], "--processing-unit") == 0) {
         if (strcmp(argv[i+1], "host") == 0) {
@@ -48,14 +47,18 @@ int main(int argc, char **argv) {
           processing_unit = ProcessingUnit::Device;
           i += 1;
         } else {
-          bad_usage = 1;
+          bad_usage = true;
         }
       } else if (strcmp(argv[i], "--canny-sampling-offset") == 0) {
         canny_sample_offset = atoi(argv[i+1]);
         i += 1;
+
+        if (canny_sample_offset < 0 || 255 < canny_sample_offset) {
+          bad_usage = true;
+        }
       } else {
         // This option did not match any possible one
-        bad_usage = 1;
+        bad_usage = true;
       }
     }
   
@@ -63,8 +66,6 @@ int main(int argc, char **argv) {
       // Filename is missing or bad usage
       print_bad_usage();
       exit(EXIT_FAILURE);
-    } else {
-      //filename = argv[argc-1];
     }
   }
   
