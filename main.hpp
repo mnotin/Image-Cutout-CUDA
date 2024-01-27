@@ -3,7 +3,6 @@
 
 #define MATRIX_SIZE_PER_BLOCK 16
 
-enum EdgeDetection { SobelFeldman, Canny };
 enum ProcessingUnit { Host, Device };
 
 void print_help();
