@@ -25,7 +25,7 @@ OBJ=main.o \
 	nvcc -x cu --gpu-architecture=sm_50 --device-c $< -o $@ $(SRC)
 
 main: $(OBJ)
-	nvcc -o main --gpu-architecture=sm_50 $(OBJ) -lm
+	nvcc -o cutout --gpu-architecture=sm_50 $(OBJ) -lm
 
 clean:
 	rm -f $(OBJ) main
