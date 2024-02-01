@@ -3,6 +3,9 @@
 #include "canny_core.hpp"
 #include "edge_detection_core.hpp"
 
+/**
+ * Returns the value a pixel should have after the non maximum suppression phase of the Canny edge detector.
+ **/
 __device__ __host__ unsigned char non_maximum_suppression_core(int2 index, unsigned char *gradient_matrix, float *angle_matrix, dim3 matrix_dim) {
   const int INT_INDEX = index.y*matrix_dim.x + index.x;
   const float ANGLE = angle_matrix[INT_INDEX] + M_PI_2;
@@ -50,6 +53,10 @@ __device__ __host__ unsigned char non_maximum_suppression_core(int2 index, unsig
   return final_value;
 }
 
+/**
+ * Returns the state a pixel should have before executing the main loop of the histeresis thresholding phase
+ * of the Canny edge detecor.
+ **/
 __device__ __host__ char histeresis_thresholding_init_core(int2 index, unsigned char *gradient_matrix, dim3 matrix_dim, int canny_min, int canny_max) {
   const int INT_INDEX = index.y*matrix_dim.x + index.x;
   char result;
@@ -66,7 +73,7 @@ __device__ __host__ char histeresis_thresholding_init_core(int2 index, unsigned 
 }
 
 /**
- * Mark pending pixels connected to a marked pixel.
+ * Mark a pending pixel if it is connected to a marked pixel.
  */
 __device__ __host__ void histeresis_thresholding_loop_core(int2 index, char *ht_matrix, dim3 matrix_dim, int2 read_limit, int *done) {
   const int INT_INDEX = index.y*matrix_dim.x + index.x;
@@ -110,6 +117,10 @@ __device__ __host__ void histeresis_thresholding_loop_core(int2 index, char *ht_
   }
 }
 
+/**
+ * Discard pixels still in the pending state after the main loop of the histeresis thresholding phase
+ * of the Canny edge detector.
+ **/
 __device__ __host__ unsigned char histeresis_thresholding_end_core(int2 index, char *ht_matrix, dim3 matrix_dim) {
   const int INT_INDEX = index.y*matrix_dim.x + index.x;
   unsigned char result;

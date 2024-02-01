@@ -1,11 +1,6 @@
-#include <math.h>
-
 #include "sobel_feldman_kernel.hpp"
 
 #include "../../core/edge_detection/sobel_feldman_core.hpp"
-#include "../../main.hpp"
-#include "../../kernel/utils/convolution_kernel.hpp"
-#include "../../core/utils/convolution_core.hpp"
 
 
 

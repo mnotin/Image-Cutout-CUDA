@@ -1,5 +1,3 @@
-#include <math.h>
-
 #include "canny_kernel.hpp"
 
 #include "../../core/edge_detection/canny_core.hpp"

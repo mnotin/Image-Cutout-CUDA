@@ -2,6 +2,9 @@
 
 #include "edge_detection_core.hpp"
 
+/**
+ * Returns the first letter of the color associated to a specific angle value. 
+ **/
 __device__ __host__ char get_color(float angle) {
   char color = ' ';
 

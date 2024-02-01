@@ -1,8 +1,7 @@
 #include "convolution_core.hpp"
 
 /**
- * Applies discrete convolution over a matrix using a given kernel.
- * This kernel should be called using appropriate number of grids, blocks and threads to match the resolution of the image.
+ * Applies convolution over an element of a matrix using a given kernel.
  **/
 __device__ __host__ int convolution_core(int2 index, unsigned char *input_matrix, dim3 matrix_dim, const float *kernel, int kernel_size) {
   int convolution_result = 0;

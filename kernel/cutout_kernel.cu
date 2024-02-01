@@ -1,15 +1,10 @@
 #include <math.h>
-#include <iostream>
 
 #include "cutout_kernel.hpp"
 
 #include "../core/cutout_core.hpp"
 #include "../main.hpp"
 
-/**
- * First step of the cutout process.
- * Each gradient pixel with a value above the threshold is considered a border.
- **/
 __global__ void draw_edges_on_cutout_matrix_kernel(unsigned char *edge_matrix, 
                                                    char *micro_cutout_matrix, dim3 matrix_dim,
                                                    int2 cutout_start_pixel, int2 tracking_start_pixel,
@@ -51,10 +46,6 @@ __global__ void draw_edges_on_cutout_matrix_kernel(unsigned char *edge_matrix,
   }
 }
 
-/**
- * Main part of the cutout process.
- * Loops over a cutout matrix from the start pixel to fill the shape it is in.
- **/
 __global__ void cutout_algorithm_kernel(char *cutout_matrix, dim3 matrix_dim,
                                         int *done, char *looking_char, char spread_char,
                                         int2 *tracking_top_left, int2 *tracking_bottom_right

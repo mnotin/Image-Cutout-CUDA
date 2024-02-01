@@ -3,6 +3,9 @@
 #include "sobel_feldman_core.hpp"
 #include "edge_detection_core.hpp"
 
+/**
+ * Returns the global gradient of a pixel.
+ **/
 __device__ __host__ unsigned char global_gradient_core(int2 index, int *horizontal_edges, int *vertical_edges, dim3 matrix_dim) {
   int g_x = horizontal_edges[index.y * matrix_dim.x + index.x];
   int g_y = vertical_edges[index.y * matrix_dim.x + index.x];
@@ -11,6 +14,10 @@ __device__ __host__ unsigned char global_gradient_core(int2 index, int *horizont
   return global_gradient <= 255.0 ? (unsigned char) global_gradient : 255;
 }
 
+
+/**
+ * Returns the angle of a pixel.
+ **/
 __device__ __host__ float angle_core(int2 index, int *horizontal_gradient, int *vertical_gradient, dim3 matrix_dim) {
   int g_x = horizontal_gradient[index.y * matrix_dim.x + index.x];
   int g_y = vertical_gradient[index.y * matrix_dim.x + index.x];
@@ -19,6 +26,9 @@ __device__ __host__ float angle_core(int2 index, int *horizontal_gradient, int *
   return angle; 
 }
 
+/**
+ * Color a pixel depending on the value of its angle.
+ **/
 __device__ __host__ void edge_color_core(int2 index, unsigned char *gradient_matrix, float *angle_matrix, unsigned char *output_image, dim3 image_dim) { 
   const float ANGLE = angle_matrix[index.y*image_dim.x + index.x] + M_PI_2;
   const int INT_INDEX = index.y*image_dim.x + index.x;

@@ -1,8 +1,5 @@
-#include <iostream>
-
 #include "rgb_to_gray_kernel.hpp"
 
-#include "../../main.hpp"
 #include "../../core/utils/rgb_to_gray_core.hpp"
 
 __global__ void rgb_to_gray_kernel(unsigned char *rgb_image, unsigned char *gray_image, dim3 image_dim) {

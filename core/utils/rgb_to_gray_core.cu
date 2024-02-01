@@ -1,5 +1,8 @@
 #include "rgb_to_gray_core.hpp"
 
+/**
+ * Convert an RGB pixel into a gray pixel.
+ **/
 __device__ __host__ unsigned char rgb_to_gray_core(int2 index, unsigned char *rgb_image, dim3 image_dim) {
   unsigned char r = 0, g = 0, b = 0;
 
