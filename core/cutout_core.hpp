@@ -10,7 +10,7 @@ __device__ __host__ char cutout_algorithm_core(int2 index, char *cutout_matrix, 
                                                int2 read_limit, int *done, char *looking_pixels,
                                                char spread_pixel = 'M');
 
-__device__ __host__ void apply_cutout_core(int2 index, char *micro_cutout_matrix, unsigned char *output_image, dim3 image_dim, int2 start_pixel);
+__device__ __host__ void apply_cutout_core(int2 index, char *micro_cutout_matrix, unsigned char *output_image, dim3 image_dim, int2 start_pixel, bool targeting);
 
 
 #endif // CUTOUT_CORE_H

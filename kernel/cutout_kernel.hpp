@@ -13,7 +13,7 @@ __global__ void cutout_algorithm_kernel(char *cutout_matrix, dim3 matrix_dim, in
 
 __global__ void apply_macro_to_micro_cutout_matrix_kernel(char *macro_cutout_matrix, char *micro_cutout_matrix, dim3 macro_matrix_dim, dim3 micro_matrix_dim);
 
-__global__ void apply_cutout_kernel(char *micro_cutout_matrix, unsigned char *output_image, dim3 image_dim, int2 start_pixel);
+__global__ void apply_cutout_kernel(char *micro_cutout_matrix, unsigned char *output_image, dim3 image_dim, int2 start_pixel, bool targeting);
 
 
 namespace ProcessingUnitDevice {

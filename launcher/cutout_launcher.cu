@@ -83,32 +83,34 @@ void ProcessingUnitDevice::cutout(unsigned char *h_rgb_image, unsigned char *h_e
   }
   
   // Object tracking
-  h_done = 0;
-  cudaMemcpy(d_tracking_looking_pixels, h_tracking_looking_pixels, 3 * sizeof(char), cudaMemcpyHostToDevice);
-  while (h_done == 0) {
-    h_done = 1; // Let's assume that the process is done
-    cudaMemcpy(d_done, &h_done, sizeof(int), cudaMemcpyHostToDevice);
-    cutout_algorithm_kernel<<<grid_dim, block_dim>>>(d_micro_cutout_matrix, matrix_dim,
-                                                     d_done, d_tracking_looking_pixels,
-                                                     'T', d_tracking_top_left, d_tracking_bottom_right);
+  if (tracking_start_pixel->x != -1) {
+    h_done = 0;
+    cudaMemcpy(d_tracking_looking_pixels, h_tracking_looking_pixels, 3 * sizeof(char), cudaMemcpyHostToDevice);
+    while (h_done == 0) {
+      h_done = 1; // Let's assume that the process is done
+      cudaMemcpy(d_done, &h_done, sizeof(int), cudaMemcpyHostToDevice);
+      cutout_algorithm_kernel<<<grid_dim, block_dim>>>(d_micro_cutout_matrix, matrix_dim,
+                                                       d_done, d_tracking_looking_pixels,
+                                                       'T', d_tracking_top_left, d_tracking_bottom_right);
     
-    Cutout::transfer_edges_between_blocks_kernel<<<grid_dim, block_dim>>>(d_micro_cutout_matrix,
-                                                                          matrix_dim, d_done, d_tracking_looking_pixels, 'T');
-    cudaMemcpy(&h_done, d_done, sizeof(int), cudaMemcpyDeviceToHost);
-  }
-  cudaMemcpy(&h_tracking_top_left, d_tracking_top_left, sizeof(int2), cudaMemcpyDeviceToHost);
-  cudaMemcpy(&h_tracking_bottom_right, d_tracking_bottom_right, sizeof(int2), cudaMemcpyDeviceToHost);
-  if (abs(tracking_start_pixel->x - (((h_tracking_bottom_right.x - h_tracking_top_left.x) / 2) + h_tracking_top_left.x)) < 99 &&
-      abs(tracking_start_pixel->y - (((h_tracking_bottom_right.y - h_tracking_top_left.y) / 2) + h_tracking_top_left.y)) < 99) {
-    // Check that the center of gravity did not move too much
-    tracking_start_pixel->x = ((h_tracking_bottom_right.x - h_tracking_top_left.x) / 2) + h_tracking_top_left.x;
-    tracking_start_pixel->y = ((h_tracking_bottom_right.y - h_tracking_top_left.y) / 2) + h_tracking_top_left.y;
-  }
+      Cutout::transfer_edges_between_blocks_kernel<<<grid_dim, block_dim>>>(d_micro_cutout_matrix,
+                                                                            matrix_dim, d_done, d_tracking_looking_pixels, 'T');
+      cudaMemcpy(&h_done, d_done, sizeof(int), cudaMemcpyDeviceToHost);
+    }
+    cudaMemcpy(&h_tracking_top_left, d_tracking_top_left, sizeof(int2), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&h_tracking_bottom_right, d_tracking_bottom_right, sizeof(int2), cudaMemcpyDeviceToHost);
+    if (abs(tracking_start_pixel->x - (((h_tracking_bottom_right.x - h_tracking_top_left.x) / 2) + h_tracking_top_left.x)) < 99 &&
+        abs(tracking_start_pixel->y - (((h_tracking_bottom_right.y - h_tracking_top_left.y) / 2) + h_tracking_top_left.y)) < 99) {
+      // Check that the center of gravity did not move too much
+      tracking_start_pixel->x = ((h_tracking_bottom_right.x - h_tracking_top_left.x) / 2) + h_tracking_top_left.x;
+      tracking_start_pixel->y = ((h_tracking_bottom_right.y - h_tracking_top_left.y) / 2) + h_tracking_top_left.y;
+    }
 
-  std::cout << tracking_start_pixel->x << "-" << tracking_start_pixel->y << std::endl;
+    std::cout << tracking_start_pixel->x << "-" << tracking_start_pixel->y << std::endl;
+  }
    
   cudaMemcpy(d_rgb_image, h_rgb_image, 3 * matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyHostToDevice);
-  apply_cutout_kernel<<<grid_dim, block_dim>>>(d_micro_cutout_matrix, d_rgb_image, matrix_dim, cutout_start_pixel);
+  apply_cutout_kernel<<<grid_dim, block_dim>>>(d_micro_cutout_matrix, d_rgb_image, matrix_dim, cutout_start_pixel, tracking_start_pixel->x != -1);
   cudaMemcpy(h_rgb_image, d_rgb_image, 3 * matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyDeviceToHost);
 
   cudaFree(d_rgb_image);
@@ -198,35 +200,37 @@ void ProcessingUnitHost::cutout(unsigned char *rgb_image, unsigned char *edge_ma
   
   done = 0;
   
-  // Tracking
-  while (done == 0) {
-    done = 1;
-    for (index.y = 0; index.y < matrix_dim.y; index.y++) {
-      for (index.x = 0; index.x < matrix_dim.x; index.x++) {
-        cutout_algorithm_core(index, cutout_matrix, matrix_dim, make_int2(matrix_dim.x, matrix_dim.y), &done, tracking_looking_pixels, 'T');
+  if (tracking_start_pixel->x != -1) {
+    // Tracking
+    while (done == 0) {
+      done = 1;
+      for (index.y = 0; index.y < matrix_dim.y; index.y++) {
+        for (index.x = 0; index.x < matrix_dim.x; index.x++) {
+          cutout_algorithm_core(index, cutout_matrix, matrix_dim, make_int2(matrix_dim.x, matrix_dim.y), &done, tracking_looking_pixels, 'T');
 
-        if (index.x < tracking_top_left.x) {
-          tracking_top_left.x = index.x;
-        } else if (tracking_bottom_right.x < index.x) {
-          tracking_bottom_right.x = index.x;
-        } else if (index.y < tracking_top_left.y) {
-          tracking_top_left.y = index.y;
-        } else if (tracking_bottom_right.y < index.y) {
-          tracking_bottom_right.y = index.y;
+          if (index.x < tracking_top_left.x) {
+            tracking_top_left.x = index.x;
+          } else if (tracking_bottom_right.x < index.x) {
+            tracking_bottom_right.x = index.x;
+          } else if (index.y < tracking_top_left.y) {
+            tracking_top_left.y = index.y;
+          } else if (tracking_bottom_right.y < index.y) {
+            tracking_bottom_right.y = index.y;
+          }
         }
       }
     }
-  }
-  if (abs(tracking_start_pixel->x - (((tracking_bottom_right.x - tracking_top_left.x) / 2) + tracking_top_left.x)) < 99 &&
-      abs(tracking_start_pixel->y - (((tracking_bottom_right.y - tracking_top_left.y) / 2) + tracking_top_left.y)) < 99) {
-    // Check that the center of gravity did not move too much
-    tracking_start_pixel->x = ((tracking_bottom_right.x - tracking_top_left.x) / 2) + tracking_top_left.x;
-    tracking_start_pixel->y = ((tracking_bottom_right.y - tracking_top_left.y) / 2) + tracking_top_left.y;
+    if (abs(tracking_start_pixel->x - (((tracking_bottom_right.x - tracking_top_left.x) / 2) + tracking_top_left.x)) < 99 &&
+        abs(tracking_start_pixel->y - (((tracking_bottom_right.y - tracking_top_left.y) / 2) + tracking_top_left.y)) < 99) {
+      // Check that the center of gravity did not move too much
+      tracking_start_pixel->x = ((tracking_bottom_right.x - tracking_top_left.x) / 2) + tracking_top_left.x;
+      tracking_start_pixel->y = ((tracking_bottom_right.y - tracking_top_left.y) / 2) + tracking_top_left.y;
+    }
   }
   
   for (index.y = 0; index.y < matrix_dim.y; index.y++) {
     for (index.x = 0; index.x < matrix_dim.x; index.x++) {
-      apply_cutout_core(index, cutout_matrix, rgb_image, matrix_dim, cutout_start_pixel);
+      apply_cutout_core(index, cutout_matrix, rgb_image, matrix_dim, cutout_start_pixel, tracking_start_pixel->x != -1);
     }
   }
 }

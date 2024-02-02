@@ -120,7 +120,7 @@ int main(int argc, char **argv) {
 void print_help() {
   std::cout << "Usage: ./main [OPTION] file" << std::endl;
   std::cout << "\t--cutout-start-pixel <x> <y>\t\tPixel coordinates where the cutout algorithm should start. (default: 0 0)" << std::endl;
-  std::cout << "\t--tracking-start-pixel <x> <y>\t\tPixel coordinates inside the object to track. (default: center of the image)" << std::endl;
+  std::cout << "\t--tracking-start-pixel <x> <y>\t\tPixel coordinates inside the object to track. (default: no tracking)" << std::endl;
 
   std::cout << "\t--canny-thresholds <min> <max>\t\tSpecify the thresholds that have to be used by the Canny edge detector (default: 50 100)" << std::endl;
   std::cout << "\t\t\t\t\t\tPermissible values are integer between 0 and 255." << std::endl;

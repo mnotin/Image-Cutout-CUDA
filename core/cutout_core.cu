@@ -55,16 +55,16 @@ __device__ __host__ char cutout_algorithm_core(int2 index, char *cutout_matrix, 
 /**
  * Set the color of a pixel that is not targeted by the cutout process to black. 
  **/
-__device__ __host__ void apply_cutout_core(int2 index, char *cutout_matrix, unsigned char *output_image, dim3 image_dim, int2 start_pixel) {
+__device__ __host__ void apply_cutout_core(int2 index, char *cutout_matrix, unsigned char *output_image, dim3 image_dim, int2 start_pixel, bool targeting) {
   const int INT_INDEX = index.y*image_dim.x + index.x;
 
   if (index.x == start_pixel.x && index.y == start_pixel.y) {
     output_image[3 * (INT_INDEX)] = 255;
     output_image[3 * (INT_INDEX) + 1] = 0;
     output_image[3 * (INT_INDEX) + 2] = 0;
-  } else if (cutout_matrix[INT_INDEX] == 'T') {
+  } else if (cutout_matrix[INT_INDEX] != 'T' && targeting  || cutout_matrix[INT_INDEX] == 'M' && !targeting ){
     output_image[3 * (INT_INDEX)] = 0;
     output_image[3 * (INT_INDEX) + 1] = 0;
-    output_image[3 * (INT_INDEX) + 2] = 255;
-  }
+    output_image[3 * (INT_INDEX) + 2] = 0;
+  }  
 }
