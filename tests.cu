@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 
 #include "tests.hpp"
 #include "launcher/utils/rgb_to_gray_launcher.hpp"
@@ -22,11 +23,6 @@ void test_canny(std::string filename, int2 cutout_start_pixel, int2 *tracking_st
   dim3 rgb_image_dim(rgb_image->width, rgb_image->height);
   dim3 gray_image_dim(gray_image->width, gray_image->height);
  
-  if (tracking_start_pixel->x == -1) {
-    tracking_start_pixel->x = rgb_image_dim.x / 2;
-    tracking_start_pixel->y = rgb_image_dim.y / 2;
-  }
-  
   if (rgb_image == nullptr) {
     std::cout << "Error reading the image" << std::endl;
     exit(EXIT_FAILURE);
@@ -97,18 +93,19 @@ void test_canny(std::string filename, int2 cutout_start_pixel, int2 *tracking_st
       ProcessingUnitHost::cutout(buffer_rgb->data, buffer_gray->data, gray_image_dim, cutout_start_pixel, tracking_start_pixel, 0);
     }
 
-    const char *prefix_rgb = "output/cutout_output";
-    char number_rgb[4] = "000";
-    sprintf(number_rgb, "%d", file_index);
-    char filename_rgb[strlen(prefix_rgb) + 3 + 4 + 1]; // prefix + number + .ppm + \0
-    bzero(filename_rgb, strlen(prefix_rgb) + 3 + 4 + 1);
-    strcpy(filename_rgb, prefix_rgb);
-    strcpy(filename_rgb + strlen(prefix_rgb), number_rgb);
-    strcpy(filename_rgb + strlen(filename_rgb), ".ppm");
-    printf("%s\n", filename_rgb);
-    writePPM(filename_rgb, buffer_rgb);
+    std::string prefix_rgb("output/frame");
+    std::stringstream string_stream;
+    std::string number;
+    string_stream << std::setw(5) << std::setfill('0') << file_index;
+    string_stream >> number;
+
+    std::string filename_rgb; // prefix + number + .ppm + \0
+    filename_rgb.append(prefix_rgb);
+    filename_rgb.append(number);
+    filename_rgb.append(".ppm");
+    writePPM(filename_rgb.c_str(), buffer_rgb);
   
-     file_index += 1;
+    file_index += 1;
   }
 
   destroyPGM(buffer_gray);
