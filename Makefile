@@ -1,5 +1,5 @@
 OBJ=main.o \
-    tests.o \
+    edge_detector.o \
     img.o \
     core/edge_detection/edge_detection_core.o \
     launcher/edge_detection/sobel_feldman_launcher.o \

@@ -4,7 +4,7 @@
 #include <iomanip>
 
 #include "main.hpp"
-#include "tests.hpp"
+#include "edge_detector.hpp"
 
 int main(int argc, char **argv) {
   int2 cutout_start_pixel = make_int2(0, 0);
@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
   while (file.good()) {
     file.close();
 
-    test_canny(filename, cutout_start_pixel, &tracking_start_pixel, canny_min_val, canny_max_val, canny_sample_offset, processing_unit, file_index);
+    canny(filename, cutout_start_pixel, &tracking_start_pixel, canny_min_val, canny_max_val, canny_sample_offset, processing_unit, file_index);
     if (canny_sample_offset != 0)
       break; // We sample only the first image
     file_index += 1;
