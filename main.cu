@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
   int canny_sample_offset = 0; // Zero: no sample; non-zero value: sample
 
   if (argc == 2 && strcmp(argv[1], "--help") == 0) {
-    print_help();
+    print_help(argv[0]);
 
     return 0;
   } else {
@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
   
     if (bad_usage) {
       // Filename is missing or bad usage
-      print_bad_usage();
+      print_bad_usage(argv[0]);
       exit(EXIT_FAILURE);
     }
   }
@@ -117,8 +117,8 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-void print_help() {
-  std::cout << "Usage: ./main [OPTION] file" << std::endl;
+void print_help(char *app_name) {
+  std::cout << "Usage: " << app_name << " [OPTION] file" << std::endl;
   std::cout << "\t--cutout-start-pixel <x> <y>\t\tPixel coordinates where the cutout algorithm should start. (default: 0 0)" << std::endl;
   std::cout << "\t--tracking-start-pixel <x> <y>\t\tPixel coordinates inside the object to track. (default: no tracking)" << std::endl;
 
@@ -133,7 +133,7 @@ void print_help() {
   std::cout << "\t--help\t\t\t\t\tDisplay this help and exit." << std::endl;
 }
 
-void print_bad_usage() {
-  std::cout << "Usage: ./main [OPTION] file" << std::endl;
-  std::cout << "Try './main --help' for more information." << std::endl;
+void print_bad_usage(char *app_name) {
+  std::cout << "Usage: " << app_name << " [OPTION] file" << std::endl;
+  std::cout << "Try '" << app_name << " --help' for more information." << std::endl;
 }

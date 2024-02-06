@@ -5,7 +5,7 @@
 
 enum ProcessingUnit { Host, Device };
 
-void print_help();
-void print_bad_usage();
+void print_help(char *app_name);
+void print_bad_usage(char *app_name);
 
 #endif // MAIN_HPP
