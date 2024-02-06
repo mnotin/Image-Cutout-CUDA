@@ -9,6 +9,7 @@
 int main(int argc, char **argv) {
   int2 cutout_start_pixel = make_int2(0, 0);
   int2 tracking_start_pixel = make_int2(-1, -1);
+  int nb_noise_reduction = 1;
   ProcessingUnit processing_unit = ProcessingUnit::Device;
   int canny_min_val = 50;
   int canny_max_val = 100;
@@ -31,6 +32,13 @@ int main(int argc, char **argv) {
         tracking_start_pixel.x = atoi(argv[i+1]);
         tracking_start_pixel.y = atoi(argv[i+2]);
         i += 2;
+      } else if (strcmp(argv[i], "--noise-reduction") == 0) {
+        nb_noise_reduction = atoi(argv[i+1]); 
+        i += 1;
+
+        if (nb_noise_reduction < 0) {
+          bad_usage = true;
+        }
       } else if (strcmp(argv[i], "--canny-thresholds") == 0) {
         canny_min_val = atoi(argv[i+1]);
         canny_max_val = atoi(argv[i+2]);
@@ -88,7 +96,15 @@ int main(int argc, char **argv) {
   while (file.good()) {
     file.close();
 
-    canny(filename, cutout_start_pixel, &tracking_start_pixel, canny_min_val, canny_max_val, canny_sample_offset, processing_unit, file_index);
+    canny(filename,
+          cutout_start_pixel,
+          &tracking_start_pixel,
+          nb_noise_reduction,
+          canny_min_val,
+          canny_max_val,
+          canny_sample_offset,
+          processing_unit,
+          file_index);
     if (canny_sample_offset != 0)
       break; // We sample only the first image
     file_index += 1;
@@ -121,6 +137,8 @@ void print_help(char *app_name) {
   std::cout << "Usage: " << app_name << " [OPTION] file" << std::endl;
   std::cout << "\t--cutout-start-pixel <x> <y>\t\tPixel coordinates where the cutout algorithm should start. (default: 0 0)" << std::endl;
   std::cout << "\t--tracking-start-pixel <x> <y>\t\tPixel coordinates inside the object to track. (default: no tracking)" << std::endl;
+
+  std::cout << "\t--noise-reduction <value>\t\tSpecify how many times the noise reduction process should be applied. (default: 1)" << std::endl;
 
   std::cout << "\t--canny-thresholds <min> <max>\t\tSpecify the thresholds that have to be used by the Canny edge detector (default: 50 100)" << std::endl;
   std::cout << "\t\t\t\t\t\tPermissible values are integer between 0 and 255." << std::endl;

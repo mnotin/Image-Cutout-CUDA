@@ -11,7 +11,7 @@
 #include "launcher/edge_detection/sobel_feldman_launcher.hpp"
 #include "launcher/edge_detection/canny_launcher.hpp"
 
-void canny(std::string filename, int2 cutout_start_pixel, int2 *tracking_start_pixel, int canny_min,
+void canny(std::string filename, int2 cutout_start_pixel, int2 *tracking_start_pixel, int nb_noise_reduction, int canny_min,
   int canny_max, int canny_sample_offset, ProcessingUnit processing_unit, int file_index
 ) {
   RGBImage *rgb_image = readPPM(filename.c_str());
@@ -37,7 +37,7 @@ void canny(std::string filename, int2 cutout_start_pixel, int2 *tracking_start_p
     
   // 2. Second step, smooth the image using a Gaussian blur
   // to remove possible noise in the picture
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < nb_noise_reduction; i++) {
     if (processing_unit == ProcessingUnit::Device) {
       ProcessingUnitDevice::gaussian_blur(gray_image->data, gray_image_dim);
       cudaDeviceSynchronize();
