@@ -1,9 +1,11 @@
 # Image Cutout CUDA
 
 ## Building the app
-Ensure that the [NVIDIA CUDA toolkit](https://developer.nvidia.com/cuda-toolkit) and [Make](https://www.gnu.org/software/make/) are installed on your machine.
+Ensure that the [NVIDIA CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) and [Make](https://www.gnu.org/software/make/) are installed on your machine.
 Then clone the project and enter the directory using the `cd` command.
 Finally, simply run `make` and the build process should start automatically.
+
+DISCLAIMER: the application has been tested using the [CUDA Toolkit 10.2](https://developer.nvidia.com/cuda-10.2-download-archive). Therefore, please note that it is not guaranteed to work properly if you are using a different version.
 
 ## How to use the app
 A folder named `input` has to be present in the same directory of the application.
