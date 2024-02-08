@@ -24,22 +24,22 @@ int main(int argc, char **argv) {
     bool bad_usage = false;
 
     for (i = 1; i < argc && !bad_usage; i++) {
-      if (strcmp(argv[i], "--cutout-start-pixel") == 0) {
+      if (strcmp(argv[i] ,"-CSP") == 0 || strcmp(argv[i], "--cutout-start-pixel") == 0) {
         cutout_start_pixel.x = atoi(argv[i+1]);
         cutout_start_pixel.y = atoi(argv[i+2]);
         i += 2;
-      } else if (strcmp(argv[i], "--tracking-start-pixel") == 0) {
+      } else if (strcmp(argv[i], "-TSP") == 0 || strcmp(argv[i], "--tracking-start-pixel") == 0) {
         tracking_start_pixel.x = atoi(argv[i+1]);
         tracking_start_pixel.y = atoi(argv[i+2]);
         i += 2;
-      } else if (strcmp(argv[i], "--noise-reduction") == 0) {
+      } else if (strcmp(argv[i], "-NR") == 0 || strcmp(argv[i], "--noise-reduction") == 0) {
         nb_noise_reduction = atoi(argv[i+1]); 
         i += 1;
 
         if (nb_noise_reduction < 0) {
           bad_usage = true;
         }
-      } else if (strcmp(argv[i], "--canny-thresholds") == 0) {
+      } else if (strcmp(argv[i], "-CT") == 0 || strcmp(argv[i], "--canny-thresholds") == 0) {
         canny_min_val = atoi(argv[i+1]);
         canny_max_val = atoi(argv[i+2]);
         i += 2;
@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
         if (canny_min_val < 0 || 255 < canny_max_val || canny_max_val < canny_min_val) {
           bad_usage = true;
         }
-      } else if (strcmp(argv[i], "--processing-unit") == 0) {
+      } else if (strcmp(argv[i], "-PU") == 0 || strcmp(argv[i], "--processing-unit") == 0) {
         if (strcmp(argv[i+1], "host") == 0) {
           processing_unit = ProcessingUnit::Host;
           i += 1;
@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
         } else {
           bad_usage = true;
         }
-      } else if (strcmp(argv[i], "--canny-sampling-offset") == 0) {
+      } else if (strcmp(argv[i], "-CSO") == 0 || strcmp(argv[i], "--canny-sampling-offset") == 0) {
         canny_sample_offset = atoi(argv[i+1]);
         i += 1;
 
@@ -135,20 +135,21 @@ int main(int argc, char **argv) {
 
 void print_help(char *app_name) {
   std::cout << "Usage: " << app_name << " [OPTION] file" << std::endl;
-  std::cout << "\t--cutout-start-pixel <x> <y>\t\tPixel coordinates where the cutout algorithm should start. (default: 0 0)" << std::endl;
-  std::cout << "\t--tracking-start-pixel <x> <y>\t\tPixel coordinates inside the object to track. (default: no tracking)" << std::endl;
-
-  std::cout << "\t--noise-reduction <value>\t\tSpecify how many times the noise reduction process should be applied. (default: 1)" << std::endl;
-
-  std::cout << "\t--canny-thresholds <min> <max>\t\tSpecify the thresholds that have to be used by the Canny edge detector (default: 50 100)" << std::endl;
-  std::cout << "\t\t\t\t\t\tPermissible values are integer between 0 and 255." << std::endl;
-  std::cout << "\t--processing-unit <processing-unit>\tSpecify where the cutout process has to be executed. (default: device)" << std::endl;
-  std::cout << "\t\t\t\t\t\tPermissible processing units are 'host' (CPU) and 'device' (GPU)." << std::endl;
-  std::cout << "\t--canny-sampling-offset <offset>\tSpecify that canny should produce multiple outputs, " \
+  std::cout << "\t-PU,  --processing-unit <processing-unit>\tSpecify where the cutout process has to be executed. (default: device)" << std::endl;
+  std::cout << "\t\t\t\t\t\t\tPermissible processing units are 'host' (CPU) and 'device' (GPU)." << std::endl;
+  std::cout << std::endl;
+  std::cout << "\t-NR,  --noise-reduction <value>\t\t\tSpecify how many times the noise reduction process should be applied. (default: 1)" << std::endl;
+  std::cout << std::endl;
+  std::cout << "\t-CT,  --canny-thresholds <min> <max>\t\tSpecify the thresholds that have to be used by the Canny edge detector (default: 50 100)" << std::endl;
+  std::cout << "\t\t\t\t\t\t\tPermissible values are integer between 0 and 255." << std::endl;
+  std::cout << "\t-CSO, --canny-sampling-offset <offset>\t\tSpecify that canny should produce multiple outputs, " \
   "starting from the minimum value threshold up to the maximum value" << std::endl;
-  std::cout << "\t\t\t\t\t\twith an offset of 'offset' between each sample." << std::endl;
-
-  std::cout << "\t--help\t\t\t\t\tDisplay this help and exit." << std::endl;
+  std::cout << "\t\t\t\t\t\t\twith an offset of 'offset' between each sample." << std::endl;
+  std::cout << std::endl;
+  std::cout << "\t-CSP, --cutout-start-pixel <x> <y>\t\tPixel coordinates where the cutout algorithm should start. (default: 0 0)" << std::endl;
+  std::cout << "\t-TSP, --tracking-start-pixel <x> <y>\t\tPixel coordinates inside the object to track. (default: no tracking)" << std::endl;
+  std::cout << std::endl;
+  std::cout << "\t--help\t\t\t\t\t\tDisplay this help and exit." << std::endl;
 }
 
 void print_bad_usage(char *app_name) {
