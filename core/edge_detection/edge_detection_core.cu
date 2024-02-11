@@ -8,7 +8,7 @@
 __device__ __host__ char get_color(float angle) {
   char color = ' ';
 
-  if (angle < M_PI / 8.0 || (M_PI / 8.0) * 7 < angle) {
+  if ((0 < angle && angle <= M_PI / 8.0) || ((M_PI / 8.0) * 7 <= angle) && angle <= M_PI) {
     // Horizontal gradient direction : Yellow
     color = 'Y';
   } else if (M_PI / 8.0 < angle && angle < (M_PI / 8.0) * 3) {
@@ -17,9 +17,12 @@ __device__ __host__ char get_color(float angle) {
   } else if ((M_PI / 8.0) * 5 < angle && angle < (M_PI / 8.0) * 7) {
     // Top left gradient direction : Red
     color = 'R';
-  } else {
+  } else if ((M_PI / 8.0) * 3 < angle && angle < (M_PI / 8.0) * 5)  {
     // Vertical gradient direction : Blue
     color = 'B';
+  } else {
+    // There is no edge here
+    color = ' ';
   }
 
   return color;

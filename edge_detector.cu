@@ -50,10 +50,10 @@ void canny(std::string filename, int2 cutout_start_pixel, int2 *tracking_start_p
   // 3. Third step, apply the Sobel-Feldman operator to detect edges of shapes
   if (processing_unit == ProcessingUnit::Device) {
     ProcessingUnitDevice::sobel_feldman(gray_image->data, gradient_image->data, angle_image, gray_image_dim);
-    ProcessingUnitDevice::generate_edge_color(gradient_image->data, angle_image, edge_color_image->data, rgb_image_dim);
+    ProcessingUnitDevice::generate_edge_color(angle_image, edge_color_image->data, rgb_image_dim);
   } else if (processing_unit == ProcessingUnit::Host) {
     ProcessingUnitHost::sobel_feldman(gray_image->data, gradient_image->data, angle_image, gray_image_dim);
-    ProcessingUnitHost::generate_edge_color(gradient_image->data, angle_image, edge_color_image->data, rgb_image_dim);
+    ProcessingUnitHost::generate_edge_color(angle_image, edge_color_image->data, rgb_image_dim);
   }
   writePGM("output/sf_gradient_output.pgm", gradient_image);
   writePPM("output/edge_color_output.ppm", edge_color_image);

@@ -117,37 +117,33 @@ void ProcessingUnitHost::sobel_feldman(unsigned char *input_matrix, unsigned cha
 
 
 
-void ProcessingUnitDevice::generate_edge_color(unsigned char *h_gradient_matrix, float *h_angle_matrix, unsigned char *h_output_image, dim3 matrix_dim) {
+void ProcessingUnitDevice::generate_edge_color(float *h_angle_matrix, unsigned char *h_output_image, dim3 matrix_dim) {
   dim3 block_dim(MATRIX_SIZE_PER_BLOCK, MATRIX_SIZE_PER_BLOCK);
   dim3 grid_dim(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
 
-  unsigned char *d_gradient_matrix;
   float *d_angle_matrix;
   unsigned char *d_output_image;
 
-  cudaMalloc(&d_gradient_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char));
   cudaMalloc(&d_angle_matrix, matrix_dim.x * matrix_dim.y * sizeof(float));
   cudaMalloc(&d_output_image, 3 * matrix_dim.x * matrix_dim.y * sizeof(unsigned char));
 
-  cudaMemcpy(d_gradient_matrix, h_gradient_matrix, matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyHostToDevice);
   cudaMemcpy(d_angle_matrix, h_angle_matrix, matrix_dim.x * matrix_dim.y * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(d_output_image, h_output_image, 3 * matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyHostToDevice);
 
-  edge_color_kernel<<<grid_dim, block_dim>>>(d_gradient_matrix, d_angle_matrix, d_output_image, matrix_dim);
+  edge_color_kernel<<<grid_dim, block_dim>>>(d_angle_matrix, d_output_image, matrix_dim);
 
   cudaMemcpy(h_output_image, d_output_image, 3 * matrix_dim.x * matrix_dim.y * sizeof(unsigned char), cudaMemcpyDeviceToHost);
 
-  cudaFree(d_gradient_matrix);
   cudaFree(d_angle_matrix);
   cudaFree(d_output_image);
 }
 
-void ProcessingUnitHost::generate_edge_color(unsigned char *gradient_matrix, float *angle_matrix, unsigned char *output_image, dim3 matrix_dim) {
+void ProcessingUnitHost::generate_edge_color(float *angle_matrix, unsigned char *output_image, dim3 matrix_dim) {
   int2 index;
 
   for (index.y = 0; index.y < matrix_dim.y; index.y++) {
     for (index.x = 0; index.x < matrix_dim.x; index.x++) {
-      edge_color_core(index, gradient_matrix, angle_matrix, output_image, matrix_dim);
+      edge_color_core(index, angle_matrix, output_image, matrix_dim);
     }
   }
 }
