@@ -85,12 +85,13 @@ void ProcessingUnitHost::canny(unsigned char *gradient_matrix, float *angle_matr
   }
 
   // Third step: histeresis thresholding loop
+  int2 matrix_dim_int2 = make_int2(matrix_dim.x, matrix_dim.y);
   while (done == 0) {
     done = 1;
 
     for (index.y = 0; index.y < matrix_dim.y; index.y++) {
       for (index.x = 0; index.x < matrix_dim.x; index.x++) {
-        histeresis_thresholding_loop_core(index, ht_matrix, matrix_dim, make_int2(matrix_dim.x, matrix_dim.y), &done);
+        histeresis_thresholding_loop_core(index, ht_matrix, matrix_dim, matrix_dim_int2, &done);
       }
     }
   }

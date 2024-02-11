@@ -136,6 +136,7 @@ void ProcessingUnitHost::cutout(unsigned char *rgb_image, unsigned char *edge_ma
   char tracking_looking_pixels[3] = {'B', 'D', '\0'};
   int2 tracking_top_left = *tracking_start_pixel;
   int2 tracking_bottom_right = *tracking_start_pixel;
+  int2 matrix_dim_int2 = make_int2(matrix_dim.x, matrix_dim.y);
   
   dim3 grid_dim(ceil((float) matrix_dim.x/MATRIX_SIZE_PER_BLOCK), ceil((float) matrix_dim.y/MATRIX_SIZE_PER_BLOCK));
   dim3 macro_matrix_dim(grid_dim.x, grid_dim.y);
@@ -171,7 +172,7 @@ void ProcessingUnitHost::cutout(unsigned char *rgb_image, unsigned char *edge_ma
     done = 1;
     for (index.y = 0; index.y < macro_matrix_dim.y; index.y++) {
       for (index.x = 0; index.x < macro_matrix_dim.x; index.x++) {
-        cutout_algorithm_core(index, macro_cutout_matrix, macro_matrix_dim, make_int2(grid_dim.x, grid_dim.y), &done, cutout_looking_pixels);
+        cutout_algorithm_core(index, macro_cutout_matrix, macro_matrix_dim, matrix_dim_int2, &done, cutout_looking_pixels);
       }
     }
   }
@@ -193,7 +194,7 @@ void ProcessingUnitHost::cutout(unsigned char *rgb_image, unsigned char *edge_ma
     done = 1;
     for (index.y = 0; index.y < matrix_dim.y; index.y++) {
       for (index.x = 0; index.x < matrix_dim.x; index.x++) {
-        cutout_algorithm_core(index, cutout_matrix, matrix_dim, make_int2(matrix_dim.x, matrix_dim.y), &done, cutout_looking_pixels);
+        cutout_algorithm_core(index, cutout_matrix, matrix_dim, matrix_dim_int2, &done, cutout_looking_pixels);
       }
     }
   }
@@ -206,7 +207,7 @@ void ProcessingUnitHost::cutout(unsigned char *rgb_image, unsigned char *edge_ma
       done = 1;
       for (index.y = 0; index.y < matrix_dim.y; index.y++) {
         for (index.x = 0; index.x < matrix_dim.x; index.x++) {
-          cutout_algorithm_core(index, cutout_matrix, matrix_dim, make_int2(matrix_dim.x, matrix_dim.y), &done, tracking_looking_pixels, 'T');
+          cutout_algorithm_core(index, cutout_matrix, matrix_dim, matrix_dim_int2, &done, tracking_looking_pixels, 'T');
 
           if (index.x < tracking_top_left.x) {
             tracking_top_left.x = index.x;
