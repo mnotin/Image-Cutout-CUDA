@@ -25,7 +25,12 @@ void ProcessingUnitDevice::canny(unsigned char *h_gradient_matrix, float *h_angl
   cudaMemcpy(d_angle_matrix, h_angle_matrix, matrix_dim.x * matrix_dim.y * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(d_done, &h_done, sizeof(int), cudaMemcpyHostToDevice);
 
-  non_maximum_suppression_kernel<<<grid_dim, block_dim>>>(d_gradient_matrix, d_angle_matrix, matrix_dim);
+  // Normally part of the Canny edge detector process.
+  // Can allow the cutout process to enter an object when small holes are present in the edges of this object.
+  // This kernel will be kept as a reference on the work done on this feature, but it should
+  // probably not be used here with regards to the objectives of this application.
+  //non_maximum_suppression_kernel<<<grid_dim, block_dim>>>(d_gradient_matrix, d_angle_matrix, matrix_dim);
+
   histeresis_thresholding_init_kernel<<<grid_dim, block_dim>>>(d_gradient_matrix, d_ht_matrix, matrix_dim, canny_min, canny_max);
   while (h_done == 0) {
     h_done = 1;
@@ -57,11 +62,15 @@ void ProcessingUnitHost::canny(unsigned char *gradient_matrix, float *angle_matr
       gradient_matrix_buffer[index.y*matrix_dim.x + index.x] = gradient_matrix[index.y*matrix_dim.x + index.x];
     }
   }
-  for (index.y = 0; index.y < matrix_dim.y; index.y++) {
+  // Normally part of the Canny edge detector process.
+  // Can allow the cutout process to enter an object when small holes are present in the edges of this object.
+  // This function call will be kept as a reference on the work done on this feature, but it should
+  // probably not be used here with regards to the objectives of this application.
+  /*for (index.y = 0; index.y < matrix_dim.y; index.y++) {
     for (index.x = 0; index.x < matrix_dim.x; index.x++) {
       gradient_matrix_buffer[index.y*matrix_dim.x + index.x] = non_maximum_suppression_core(index, gradient_matrix, angle_matrix, matrix_dim);
     }
-  }
+  }*/
   for (index.y = 0; index.y < matrix_dim.y; index.y++) {
     for (index.x = 0; index.x < matrix_dim.x; index.x++) {
       gradient_matrix[index.y*matrix_dim.x + index.x] = gradient_matrix_buffer[index.y*matrix_dim.x + index.x];
