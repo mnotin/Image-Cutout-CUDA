@@ -17,7 +17,7 @@ The app starts from `1` (i.e. `frame00001.ppm`) and increments this number until
 The app will place the output images inside an `output` folder.
 So please make sure that the `input` and `ouput` folders are present in the same directory of the application.
 
-For more details about how to configure the cutout, run `./output --help`.
+For more details about how to configure the cutout, run `./cutout --help`.
 
 **Note**: for now, only images in the portable pixelmap (PPM) format are supported.
 
